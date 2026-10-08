@@ -71,17 +71,20 @@ export class ThumbnailRenderer {
       o.frustumCulled = false
     })
     this.scene.add(obj)
-    obj.updateMatrixWorld(true)
-    const box = new THREE.Box3().setFromObject(obj, true)
-    const center = box.getCenter(new THREE.Vector3())
-    const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 0.05)
-    const dist = (radius / Math.sin(THREE.MathUtils.degToRad(this.camera.fov / 2))) * 1.1
-    this.camera.position.set(center.x + dist * 0.4, center.y + dist * 0.3, center.z + dist * 0.85)
-    this.camera.lookAt(center)
-    this.renderer.render(this.scene, this.camera)
-    const dataUrl = this.renderer.domElement.toDataURL('image/png')
-    this.scene.remove(obj)
-    return dataUrl
+    try {
+      obj.updateMatrixWorld(true)
+      const box = new THREE.Box3().setFromObject(obj, true)
+      const center = box.getCenter(new THREE.Vector3())
+      const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 0.05)
+      const dist = (radius / Math.sin(THREE.MathUtils.degToRad(this.camera.fov / 2))) * 1.1
+      this.camera.position.set(center.x + dist * 0.4, center.y + dist * 0.3, center.z + dist * 0.85)
+      this.camera.lookAt(center)
+      this.renderer.render(this.scene, this.camera)
+      const dataUrl = this.renderer.domElement.toDataURL('image/png')
+      return dataUrl
+    } finally {
+      this.scene.remove(obj)
+    }
   }
 
   dispose(): void {
