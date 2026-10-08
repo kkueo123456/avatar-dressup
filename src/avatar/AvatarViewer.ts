@@ -205,16 +205,21 @@ export class AvatarViewer {
 
   screenshot(width = 512, height = 768, quality = 0.8): string {
     const size = this.renderer.getSize(new THREE.Vector2())
+    const pixelRatio = this.renderer.getPixelRatio()
     const aspect = this.camera.aspect
-    this.renderer.setSize(width, height, false)
-    this.camera.aspect = width / height
-    this.camera.updateProjectionMatrix()
-    this.renderer.render(this.scene, this.camera)
-    const url = this.renderer.domElement.toDataURL('image/jpeg', quality)
-    this.renderer.setSize(size.x, size.y, false)
-    this.camera.aspect = aspect
-    this.camera.updateProjectionMatrix()
-    return url
+    try {
+      this.renderer.setPixelRatio(1)
+      this.renderer.setSize(width, height, false)
+      this.camera.aspect = width / height
+      this.camera.updateProjectionMatrix()
+      this.renderer.render(this.scene, this.camera)
+      return this.renderer.domElement.toDataURL('image/jpeg', quality)
+    } finally {
+      this.renderer.setPixelRatio(pixelRatio)
+      this.renderer.setSize(size.x, size.y, false)
+      this.camera.aspect = aspect
+      this.camera.updateProjectionMatrix()
+    }
   }
 
   dispose(): void {
