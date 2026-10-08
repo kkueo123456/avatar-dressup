@@ -22,6 +22,7 @@ interface EquippedPart {
   meshes: SkinnedMesh[]
   originalMaps: Map<SkinnedMesh, Texture | null>
   variantTexture: Texture | null
+  variantRequest: number
 }
 
 export class AvatarRig {
@@ -33,12 +34,12 @@ export class AvatarRig {
   private readonly equipped = new Map<string, EquippedPart>()
   private readonly pending = new Set<string>()
   private mixer: AnimationMixer | null = null
-  private readonly textureLoader = new TextureLoader()
   private baseToken = 0
 
   constructor(
     private readonly source: GltfSource,
     private readonly resolveUrl: (p: string) => string,
+    private readonly textures: { loadAsync(url: string): Promise<Texture> } = new TextureLoader(),
   ) {
     this.root.name = 'avatar'
   }
@@ -90,6 +91,7 @@ export class AvatarRig {
     for (const id of [...this.equipped.keys()]) this.unequip(id)
     this.pending.clear()
     if (this.baseScene) {
+      for (const m of collectSkinnedMeshes(this.baseScene)) m.skeleton.dispose()
       this.root.remove(this.baseScene)
       this.baseScene = null
     }
@@ -129,7 +131,7 @@ export class AvatarRig {
       mesh.castShadow = true
       this.root.add(mesh)
     }
-    this.equipped.set(part.id, { meshes, originalMaps, variantTexture: null })
+    this.equipped.set(part.id, { meshes, originalMaps, variantTexture: null, variantRequest: 0 })
   }
 
   unequip(partId: string): void {
@@ -138,6 +140,7 @@ export class AvatarRig {
     if (!entry) return
     for (const mesh of entry.meshes) {
       this.root.remove(mesh)
+      mesh.skeleton.dispose()
       ;(mesh.material as Material).dispose()
     }
     entry.variantTexture?.dispose()
@@ -151,6 +154,7 @@ export class AvatarRig {
   async setVariant(part: Part, variant: Variant | null): Promise<void> {
     const entry = this.equipped.get(part.id)
     if (!entry) return
+    const request = ++entry.variantRequest
     if (!variant) {
       for (const mesh of entry.meshes) {
         const mat = mesh.material as MeshStandardMaterial
@@ -161,10 +165,10 @@ export class AvatarRig {
       entry.variantTexture = null
       return
     }
-    const tex = await this.textureLoader.loadAsync(this.resolveUrl(variant.textures.map))
+    const tex = await this.textures.loadAsync(this.resolveUrl(variant.textures.map))
     tex.colorSpace = SRGBColorSpace
     tex.flipY = false
-    if (this.equipped.get(part.id) !== entry) {
+    if (this.equipped.get(part.id) !== entry || entry.variantRequest !== request) {
       tex.dispose()
       return
     }

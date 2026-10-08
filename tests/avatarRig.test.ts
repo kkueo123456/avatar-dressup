@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import type { SkinnedMesh } from 'three'
+import { describe, expect, it, vi } from 'vitest'
+import { Skeleton, Texture, type MeshStandardMaterial, type SkinnedMesh } from 'three'
 import { AvatarRig, PartBindError } from '@/avatar/AvatarRig'
 import type { GltfSource, LoadedGltf } from '@/avatar/PartLoader'
 import { collectSkinnedMeshes } from '@/avatar/rebind'
@@ -124,5 +124,74 @@ describe('AvatarRig', () => {
     expect(rig.bodyVisible).toBe(false)
     rig.setBodyVisible(true)
     expect(rig.bodyVisible).toBe(true)
+  })
+
+  describe('变体与骨骼释放', () => {
+    function texSetup() {
+      const base = setup()
+      const gates = new Map<string, Promise<void>>()
+      const made = new Map<string, Texture>()
+      const textures = {
+        async loadAsync(u: string): Promise<Texture> {
+          await gates.get(u)
+          const t = new Texture()
+          vi.spyOn(t, 'dispose')
+          made.set(u, t)
+          return t
+        },
+      }
+      const rig = new AvatarRig(base.src, url, textures)
+      return { rig, gates, made }
+    }
+    const mapOf = (rig: AvatarRig) => (partMeshes(rig)[0].material as MeshStandardMaterial).map
+
+    it('连续请求变体时最后一次请求生效', async () => {
+      const { rig, gates, made } = texSetup()
+      await rig.setBase(female)
+      const p = part(m, 'ranger_body')
+      await rig.equip(p)
+      const [a, b] = p.variants
+      const ua = url(a.textures.map)
+      const ub = url(b.textures.map)
+      const gate = deferred()
+      gates.set(ua, gate.promise)
+      const first = rig.setVariant(p, a)
+      await rig.setVariant(p, b)
+      gate.resolve()
+      await first
+      expect(mapOf(rig)).toBe(made.get(ub))
+      expect(made.get(ua)!.dispose).toHaveBeenCalled()
+    })
+
+    it('进行中的变体请求不会覆盖之后的重置', async () => {
+      const { rig, gates, made } = texSetup()
+      await rig.setBase(female)
+      const p = part(m, 'ranger_body')
+      await rig.equip(p)
+      const original = mapOf(rig)
+      const ux = url(p.variants[0].textures.map)
+      const gate = deferred()
+      gates.set(ux, gate.promise)
+      const pendingReq = rig.setVariant(p, p.variants[0])
+      await rig.setVariant(p, null)
+      gate.resolve()
+      await pendingReq
+      expect(mapOf(rig)).toBe(original)
+      expect(made.get(ux)!.dispose).toHaveBeenCalled()
+    })
+
+    it('unequip 释放部件骨架', async () => {
+      const spy = vi.spyOn(Skeleton.prototype, 'dispose')
+      try {
+        const { rig } = setup()
+        await rig.setBase(female)
+        await rig.equip(part(m, 'ranger_body'))
+        spy.mockClear()
+        rig.unequip('ranger_body')
+        expect(spy).toHaveBeenCalled()
+      } finally {
+        spy.mockRestore()
+      }
+    })
   })
 })
