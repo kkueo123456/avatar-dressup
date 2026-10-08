@@ -1,0 +1,8 @@
+node_modules
+dist
+assets-src/
+public/avatar/models/
+public/avatar/textures/
+public/avatar/anim/
+*.local
+.DS_Store
