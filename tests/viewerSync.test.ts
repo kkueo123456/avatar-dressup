@@ -1,3 +1,4 @@
+import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import type { AnimationRef, BaseModel, Part, Variant } from '@/types/manifest'
 import { useAvatarState } from '@/state/useAvatarState'
@@ -17,6 +18,7 @@ class FakeViewer implements ViewerLike {
   body = true
   base = ''
   failEquip = new Set<string>()
+  throwOnUnequip = false
   gates = new Map<string, Promise<void>>()
   async setBase(b: BaseModel) { this.calls.push(`base:${b.id}`); this.base = b.id; this.equipped.clear() }
   async equip(p: Part) {
@@ -25,7 +27,10 @@ class FakeViewer implements ViewerLike {
     if (this.failEquip.has(p.id)) throw new Error('boom')
     this.equipped.add(p.id)
   }
-  unequip(id: string) { this.calls.push(`unequip:${id}`); this.equipped.delete(id) }
+  unequip(id: string) {
+    this.calls.push(`unequip:${id}`)
+    if (this.throwOnUnequip) { this.throwOnUnequip = false; throw new Error('unequip boom') }
+    this.equipped.delete(id) }
   setBodyVisible(v: boolean) { this.body = v }
   async setVariant(p: Part, v: Variant | null) { this.variants.set(p.id, v?.id ?? null) }
   async playAnimation(a: AnimationRef) { this.calls.push(`anim:${a.id}`) }
@@ -108,9 +113,26 @@ describe('createViewerSync', () => {
     const gate = deferred()
     viewer.gates.set('ranger_body', gate.promise)
     store.equip(part(m, 'ranger_body'))
+    for (let i = 0; i < 10 && !viewer.calls.includes('equip:ranger_body'); i++) await nextTick()
+    expect(viewer.calls).toContain('equip:ranger_body')
     store.unequip('body')
     gate.resolve()
     await sync.idle()
     expect(viewer.equipped.has('ranger_body')).toBe(false)
+    expect(viewer.calls).toContain('unequip:ranger_body')
+  })
+
+  it('unequip 抛错不会毒化队列', async () => {
+    const { m, store, viewer, sync, onError } = setup()
+    await sync.idle()
+    store.equip(part(m, 'hood'))
+    await sync.idle()
+    viewer.throwOnUnequip = true
+    store.unequip('accessory')
+    await expect(sync.idle()).resolves.toBeUndefined()
+    expect(onError).toHaveBeenCalledWith('sync', expect.any(Error))
+    store.equip(part(m, 'hair_f'))
+    await sync.idle()
+    expect(viewer.calls).toContain('equip:hair_f')
   })
 })

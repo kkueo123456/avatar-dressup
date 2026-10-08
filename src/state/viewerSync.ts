@@ -60,7 +60,7 @@ export function createViewerSync(
     }
   }
 
-  async function apply(next: AvatarState, prev: AvatarState | undefined): Promise<void> {
+  async function applyInner(next: AvatarState, prev: AvatarState | undefined): Promise<void> {
     if (!prev || prev.baseId !== next.baseId) {
       const base = manifest.bases.find((b) => b.id === next.baseId)
       if (!base) return
@@ -90,10 +90,18 @@ export function createViewerSync(
     viewer.setBodyVisible(computeBodyVisible(next, manifest.slots))
   }
 
+  async function apply(next: AvatarState, prev: AvatarState | undefined): Promise<void> {
+    try {
+      await applyInner(next, prev)
+    } catch (e) {
+      onError('sync', e)
+    }
+  }
+
   const stop = watch(
     () => store.state.avatar,
     (next, prev) => {
-      queue = queue.then(() => apply(next, prev))
+      queue = queue.then(() => apply(next, prev)).catch(() => undefined)
     },
     { immediate: true },
   )
