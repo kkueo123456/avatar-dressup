@@ -9,6 +9,7 @@ import { AvatarViewer } from '@/avatar/AvatarViewer'
 import { ThumbnailRenderer } from '@/avatar/ThumbnailRenderer'
 import { DressUpContext } from './DressUpContext'
 import PartsPanel from './PartsPanel'
+import PosterDialog from './PosterDialog'
 import TopBar from './TopBar'
 import Viewport from './Viewport'
 import styles from './dressup.module.css'
@@ -31,6 +32,7 @@ export default function DressUp() {
   const [thumbs, setThumbs] = useState<ThumbnailRenderer | null>(null)
   const [loadingIds, setLoadingIds] = useState<ReadonlySet<string>>(() => new Set())
   const [errors, setErrors] = useState<ReadonlyMap<string, string>>(() => new Map())
+  const [posterOpen, setPosterOpen] = useState(false)
 
   // 读 manifest，校验失败整页报错
   useEffect(() => {
@@ -103,11 +105,14 @@ export default function DressUp() {
   return (
     <DressUpContext.Provider value={{ manifest: phase.manifest, store: phase.store, viewer, thumbs, loadingIds, errors }}>
       <div className={styles.layout}>
-        <TopBar />
+        <TopBar onPoster={viewer ? () => setPosterOpen(true) : undefined} />
         <div className={styles.main}>
           <Viewport containerRef={containerRef} />
           <PartsPanel />
         </div>
+        {viewer && (
+          <PosterDialog open={posterOpen} onClose={() => setPosterOpen(false)} screenshot={() => viewer.screenshot()} />
+        )}
       </div>
     </DressUpContext.Provider>
   )
