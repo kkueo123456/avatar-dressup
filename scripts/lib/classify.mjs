@@ -21,12 +21,21 @@ export function detectSex(rel) {
   return 'any'
 }
 
-/** outfits/<Set>/.../x.gltf 取 x 的直接父文件夹名；其他取文件名第一段 */
+/** 去掉 Female_ / Male_ 前缀后的文件名分段 */
+function tokens(rel) {
+  const name = baseName(rel).replace(/^(female|male)[_\-\s]+/i, '')
+  return name.split(/[_\-\s]+/).filter(Boolean)
+}
+
+/** 套装名：去掉性别前缀后的第一段，例如 Female_Ranger_Body -> ranger */
 export function detectSet(rel) {
-  const segs = rel.split('/')
-  if (segs[0] === 'outfits' && segs.length >= 3) return slugify(segs[segs.length - 2])
-  const first = baseName(rel).split(/[_\-\s]/)[0]
+  const [first] = tokens(rel)
   return first ? slugify(first) : null
+}
+
+/** 部位段：套装名之后的部分，例如 Male_Ranger_Feet_Boots -> feet_boots */
+export function detectPiece(rel) {
+  return slugify(tokens(rel).slice(1).join('_'))
 }
 
 /** @param {string} rel */
@@ -37,11 +46,14 @@ export function labelFromFile(rel) {
 /**
  * @param {string[]} files 相对 assets-src 的路径，正斜杠
  * @param {Rule[]} rules 按顺序匹配，第一条命中生效
- * @param {{ setLabels?: Record<string,string>, slotLabels?: Record<string,string> }} [opts]
+ * @param {{ setLabels?: Record<string,string>, slotLabels?: Record<string,string>,
+ *           pieceLabels?: Record<string,string>, nameLabels?: Record<string,string> }} [opts]
  */
 export function classifyFiles(files, rules, opts = {}) {
   const setLabels = opts.setLabels ?? {}
   const slotLabels = opts.slotLabels ?? {}
+  const pieceLabels = opts.pieceLabels ?? {}
+  const nameLabels = opts.nameLabels ?? {}
   const out = { bases: [], parts: [], animations: [], unmatched: [] }
   for (const rel of files) {
     const rule = rules.find((r) => r.test.test(rel))
@@ -52,8 +64,8 @@ export function classifyFiles(files, rules, opts = {}) {
     const slug = slugify(baseName(rel))
     if (rule.kind === 'base') {
       out.bases.push({
-        id: slug, sex: detectSex(rel), label: labelFromFile(rel), src: rel,
-        url: `models/base/${slug}.glb`, bodyMeshes: [], headMeshes: [],
+        id: slug, sex: detectSex(rel), label: nameLabels[slug] ?? labelFromFile(rel), src: rel,
+        url: `models/base/${slug}.glb`,
       })
     } else if (rule.kind === 'animation') {
       out.animations.push({ id: slug, label: labelFromFile(rel), src: rel, url: `anim/${slug}.glb`, clip: '' })
@@ -61,16 +73,19 @@ export function classifyFiles(files, rules, opts = {}) {
       const slot = rule.slot ?? 'accessory'
       const headSlot = slot === 'hair' || slot === 'eyebrows'
       const set = headSlot ? null : detectSet(rel)
-      const id = set && !slug.startsWith(set) ? `${set}_${slug}` : slug
+      const piece = headSlot ? '' : detectPiece(rel)
       const dir = set ? `models/outfits/${set}` : `models/${slot}`
-      const label = set && setLabels[set] ? `${setLabels[set]} ${slotLabels[slot] ?? slot}` : labelFromFile(rel)
-      out.parts.push({ id, slot, set, label, sex: detectSex(rel), src: rel, url: `${dir}/${id}.glb`, variants: [] })
+      const label = headSlot
+        ? (nameLabels[slug] ?? labelFromFile(rel))
+        : `${setLabels[set] ?? set} ${pieceLabels[piece] ?? slotLabels[slot] ?? slot}`
+      out.parts.push({ id: slug, slot, set, label, sex: detectSex(rel), src: rel, url: `${dir}/${slug}.glb`, variants: [] })
     }
   }
   return out
 }
 
 /**
+ * 只有四个服装槽位齐全的套装才生成预设；预设 id 等于套装名，每个槽位记第一个遇到的部件 id。
  * @param {{ id: string, slot: string, set: string | null }[]} parts
  * @param {string[]} outfitSlotIds
  * @param {Record<string,string>} [setLabels]
@@ -98,9 +113,13 @@ export function buildPresets(parts, outfitSlotIds, setLabels = {}) {
  * @returns {{ id: string, clip: string } | null}
  */
 export function chooseAnimation(candidates) {
-  for (const c of candidates) {
-    const idle = c.clips.find((n) => /idle/i.test(n))
-    if (idle) return { id: c.id, clip: idle }
+  // 先找名字就是 Idle / Idle_Loop 的，再找以 Idle 开头的，最后才是任何含 idle 的（避免选中 Crouch_Idle_Loop）
+  const prefer = [/^idle(_loop)?$/i, /^idle/i, /idle/i]
+  for (const re of prefer) {
+    for (const c of candidates) {
+      const idle = c.clips.find((n) => re.test(n))
+      if (idle) return { id: c.id, clip: idle }
+    }
   }
   const first = candidates.find((c) => c.clips.length > 0)
   return first ? { id: first.id, clip: first.clips[0] } : null

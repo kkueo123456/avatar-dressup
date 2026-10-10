@@ -1,0 +1,356 @@
+{
+  "version": 1,
+  "skeleton": {
+    "rootBone": "root",
+    "expectedBones": 65
+  },
+  "bases": [
+    {
+      "id": "superhero_female_fullbody",
+      "sex": "female",
+      "label": "女性",
+      "url": "models/base/superhero_female_fullbody.glb"
+    },
+    {
+      "id": "superhero_male_fullbody",
+      "sex": "male",
+      "label": "男性",
+      "url": "models/base/superhero_male_fullbody.glb"
+    }
+  ],
+  "slots": [
+    {
+      "id": "hair",
+      "label": "发型",
+      "group": "head",
+      "multiple": false,
+      "outfit": false
+    },
+    {
+      "id": "eyebrows",
+      "label": "眉毛",
+      "group": "head",
+      "multiple": false,
+      "outfit": false
+    },
+    {
+      "id": "body",
+      "label": "上身",
+      "group": "outfit",
+      "multiple": false,
+      "outfit": true
+    },
+    {
+      "id": "arms",
+      "label": "手臂",
+      "group": "outfit",
+      "multiple": false,
+      "outfit": true
+    },
+    {
+      "id": "legs",
+      "label": "腿部",
+      "group": "outfit",
+      "multiple": false,
+      "outfit": true
+    },
+    {
+      "id": "feet",
+      "label": "鞋靴",
+      "group": "outfit",
+      "multiple": false,
+      "outfit": true
+    },
+    {
+      "id": "accessory",
+      "label": "配饰",
+      "group": "outfit",
+      "multiple": true,
+      "outfit": false
+    }
+  ],
+  "parts": [
+    {
+      "id": "eyebrows_female",
+      "slot": "eyebrows",
+      "set": null,
+      "label": "女性眉",
+      "sex": "female",
+      "url": "models/eyebrows/eyebrows_female.glb",
+      "variants": []
+    },
+    {
+      "id": "eyebrows_regular",
+      "slot": "eyebrows",
+      "set": null,
+      "label": "常规眉",
+      "sex": "any",
+      "url": "models/eyebrows/eyebrows_regular.glb",
+      "variants": []
+    },
+    {
+      "id": "hair_beard",
+      "slot": "hair",
+      "set": null,
+      "label": "胡须",
+      "sex": "any",
+      "url": "models/hair/hair_beard.glb",
+      "variants": []
+    },
+    {
+      "id": "hair_buns",
+      "slot": "hair",
+      "set": null,
+      "label": "丸子头",
+      "sex": "any",
+      "url": "models/hair/hair_buns.glb",
+      "variants": []
+    },
+    {
+      "id": "hair_buzzed",
+      "slot": "hair",
+      "set": null,
+      "label": "寸头",
+      "sex": "any",
+      "url": "models/hair/hair_buzzed.glb",
+      "variants": []
+    },
+    {
+      "id": "hair_buzzedfemale",
+      "slot": "hair",
+      "set": null,
+      "label": "寸头 女款",
+      "sex": "female",
+      "url": "models/hair/hair_buzzedfemale.glb",
+      "variants": []
+    },
+    {
+      "id": "hair_long",
+      "slot": "hair",
+      "set": null,
+      "label": "长发",
+      "sex": "any",
+      "url": "models/hair/hair_long.glb",
+      "variants": []
+    },
+    {
+      "id": "hair_simpleparted",
+      "slot": "hair",
+      "set": null,
+      "label": "分头",
+      "sex": "any",
+      "url": "models/hair/hair_simpleparted.glb",
+      "variants": []
+    },
+    {
+      "id": "female_peasant_arms",
+      "slot": "arms",
+      "set": "peasant",
+      "label": "农夫 护臂",
+      "sex": "female",
+      "url": "models/outfits/peasant/female_peasant_arms.glb",
+      "variants": []
+    },
+    {
+      "id": "female_peasant_body",
+      "slot": "body",
+      "set": "peasant",
+      "label": "农夫 上衣",
+      "sex": "female",
+      "url": "models/outfits/peasant/female_peasant_body.glb",
+      "variants": []
+    },
+    {
+      "id": "female_peasant_feet",
+      "slot": "feet",
+      "set": "peasant",
+      "label": "农夫 鞋",
+      "sex": "female",
+      "url": "models/outfits/peasant/female_peasant_feet.glb",
+      "variants": []
+    },
+    {
+      "id": "female_peasant_legs",
+      "slot": "legs",
+      "set": "peasant",
+      "label": "农夫 长裤",
+      "sex": "female",
+      "url": "models/outfits/peasant/female_peasant_legs.glb",
+      "variants": []
+    },
+    {
+      "id": "female_ranger_acc_pauldrons",
+      "slot": "accessory",
+      "set": "ranger",
+      "label": "游侠 肩甲",
+      "sex": "female",
+      "url": "models/outfits/ranger/female_ranger_acc_pauldrons.glb",
+      "variants": []
+    },
+    {
+      "id": "female_ranger_arms",
+      "slot": "arms",
+      "set": "ranger",
+      "label": "游侠 护臂",
+      "sex": "female",
+      "url": "models/outfits/ranger/female_ranger_arms.glb",
+      "variants": []
+    },
+    {
+      "id": "female_ranger_body",
+      "slot": "body",
+      "set": "ranger",
+      "label": "游侠 上衣",
+      "sex": "female",
+      "url": "models/outfits/ranger/female_ranger_body.glb",
+      "variants": []
+    },
+    {
+      "id": "female_ranger_feet",
+      "slot": "feet",
+      "set": "ranger",
+      "label": "游侠 鞋",
+      "sex": "female",
+      "url": "models/outfits/ranger/female_ranger_feet.glb",
+      "variants": []
+    },
+    {
+      "id": "female_ranger_head_hood",
+      "slot": "accessory",
+      "set": "ranger",
+      "label": "游侠 兜帽",
+      "sex": "female",
+      "url": "models/outfits/ranger/female_ranger_head_hood.glb",
+      "variants": []
+    },
+    {
+      "id": "female_ranger_legs",
+      "slot": "legs",
+      "set": "ranger",
+      "label": "游侠 长裤",
+      "sex": "female",
+      "url": "models/outfits/ranger/female_ranger_legs.glb",
+      "variants": []
+    },
+    {
+      "id": "male_peasant_arms",
+      "slot": "arms",
+      "set": "peasant",
+      "label": "农夫 护臂",
+      "sex": "male",
+      "url": "models/outfits/peasant/male_peasant_arms.glb",
+      "variants": []
+    },
+    {
+      "id": "male_peasant_body",
+      "slot": "body",
+      "set": "peasant",
+      "label": "农夫 上衣",
+      "sex": "male",
+      "url": "models/outfits/peasant/male_peasant_body.glb",
+      "variants": []
+    },
+    {
+      "id": "male_peasant_feet",
+      "slot": "feet",
+      "set": "peasant",
+      "label": "农夫 鞋",
+      "sex": "male",
+      "url": "models/outfits/peasant/male_peasant_feet.glb",
+      "variants": []
+    },
+    {
+      "id": "male_peasant_legs",
+      "slot": "legs",
+      "set": "peasant",
+      "label": "农夫 长裤",
+      "sex": "male",
+      "url": "models/outfits/peasant/male_peasant_legs.glb",
+      "variants": []
+    },
+    {
+      "id": "male_ranger_acc_pauldron",
+      "slot": "accessory",
+      "set": "ranger",
+      "label": "游侠 肩甲",
+      "sex": "male",
+      "url": "models/outfits/ranger/male_ranger_acc_pauldron.glb",
+      "variants": []
+    },
+    {
+      "id": "male_ranger_arms",
+      "slot": "arms",
+      "set": "ranger",
+      "label": "游侠 护臂",
+      "sex": "male",
+      "url": "models/outfits/ranger/male_ranger_arms.glb",
+      "variants": []
+    },
+    {
+      "id": "male_ranger_body",
+      "slot": "body",
+      "set": "ranger",
+      "label": "游侠 上衣",
+      "sex": "male",
+      "url": "models/outfits/ranger/male_ranger_body.glb",
+      "variants": []
+    },
+    {
+      "id": "male_ranger_feet_boots",
+      "slot": "feet",
+      "set": "ranger",
+      "label": "游侠 长靴",
+      "sex": "male",
+      "url": "models/outfits/ranger/male_ranger_feet_boots.glb",
+      "variants": []
+    },
+    {
+      "id": "male_ranger_head_hood",
+      "slot": "accessory",
+      "set": "ranger",
+      "label": "游侠 兜帽",
+      "sex": "male",
+      "url": "models/outfits/ranger/male_ranger_head_hood.glb",
+      "variants": []
+    },
+    {
+      "id": "male_ranger_legs",
+      "slot": "legs",
+      "set": "ranger",
+      "label": "游侠 长裤",
+      "sex": "male",
+      "url": "models/outfits/ranger/male_ranger_legs.glb",
+      "variants": []
+    }
+  ],
+  "presets": [
+    {
+      "id": "peasant",
+      "label": "农夫",
+      "parts": {
+        "arms": "female_peasant_arms",
+        "body": "female_peasant_body",
+        "feet": "female_peasant_feet",
+        "legs": "female_peasant_legs"
+      }
+    },
+    {
+      "id": "ranger",
+      "label": "游侠",
+      "parts": {
+        "arms": "female_ranger_arms",
+        "body": "female_ranger_body",
+        "feet": "female_ranger_feet",
+        "legs": "female_ranger_legs"
+      }
+    }
+  ],
+  "animations": [
+    {
+      "id": "ual1_standard",
+      "label": "待机",
+      "url": "anim/ual1_standard.glb",
+      "clip": "Idle_Loop"
+    }
+  ]
+}

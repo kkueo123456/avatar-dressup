@@ -1,6 +1,4 @@
-// 解压素材后先运行 `npm run assets:scan`，对照输出调整这里的 rules 与 variantFor。
-import { slugify } from './lib/classify.mjs'
-
+// 解压素材后先运行 `npm run assets:scan`，对照输出调整这里的 rules 与各 labels。
 export const skeleton = { rootBone: 'root', expectedBones: 65 }
 
 export const slots = [
@@ -15,33 +13,40 @@ export const slots = [
 
 export const slotLabels = Object.fromEntries(slots.map((s) => [s.id, s.label]))
 
+/** 套装名（文件名去掉性别前缀后的第一段，小写）到中文名 */
 export const setLabels = {
   ranger: '游侠', peasant: '农夫', knight: '骑士', noble: '贵族', wizard: '法师',
   mage: '法师', rogue: '盗贼', priest: '牧师', barbarian: '野蛮人', archer: '弓手',
   merchant: '商人', king: '国王', queen: '女王', druid: '德鲁伊',
 }
 
-/** 按顺序匹配，第一条命中生效。头部规则必须排在底模规则前面。 */
-export const rules = [
-  { test: /^base\/.*(eyebrow|brow)\w*\.(glb|gltf)$/i, kind: 'part', slot: 'eyebrows' },
-  { test: /^base\/.*hair\w*\.(glb|gltf)$/i, kind: 'part', slot: 'hair' },
-  { test: /^base\/.*(male|female)\w*\.(glb|gltf)$/i, kind: 'base' },
-  { test: /^outfits\/.*(body|torso|chest|shirt|robe)\w*\.(glb|gltf)$/i, kind: 'part', slot: 'body' },
-  { test: /^outfits\/.*(arm|arms|sleeve|glove|bracer)\w*\.(glb|gltf)$/i, kind: 'part', slot: 'arms' },
-  { test: /^outfits\/.*(leg|legs|pants|trousers|skirt)\w*\.(glb|gltf)$/i, kind: 'part', slot: 'legs' },
-  { test: /^outfits\/.*(feet|foot|boot|boots|shoe|shoes)\w*\.(glb|gltf)$/i, kind: 'part', slot: 'feet' },
-  { test: /^outfits\/.*\.(glb|gltf)$/i, kind: 'part', slot: 'accessory' },
-  { test: /^anim\/.*\.(glb|gltf)$/i, kind: 'animation' },
-]
+/** 服装文件名在套装名之后的那段（小写、下划线）到中文名；没列的退回槽位名 */
+export const pieceLabels = {
+  body: '上衣', arms: '护臂', legs: '长裤', feet: '鞋', feet_boots: '长靴',
+  acc_pauldron: '肩甲', acc_pauldrons: '肩甲', head_hood: '兜帽',
+}
+
+/** 按整个文件名 slug 精确匹配的中文名：底模、发型、眉毛 */
+export const nameLabels = {
+  superhero_female_fullbody: '女性', superhero_male_fullbody: '男性',
+  hair_long: '长发', hair_buns: '丸子头', hair_buzzed: '寸头', hair_buzzedfemale: '寸头 女款',
+  hair_simpleparted: '分头', hair_beard: '胡须',
+  eyebrows_regular: '常规眉', eyebrows_female: '女性眉',
+}
 
 /**
- * 贴图变体识别。返回 null 表示这张 PNG 不是服装变体贴图。
- * 默认假设路径形如 outfits/Ranger/Textures/Ranger_B.png：套装名 + 分隔符 + 变体标记。
- * @param {string} pngRel
- * @returns {{ set: string, variantId: string, label: string } | null}
+ * 按顺序匹配，第一条命中生效。
+ * 只扫三个来源目录里真正要用的子目录：底模的 Base Characters、发型眉毛的 Rigged to Head Bone、
+ * 服装的 Modular Parts、动画里不带 _RM（根运动）的文件。其余一律落到 unmatched。
  */
-export function variantFor(pngRel) {
-  const m = /^outfits\/(?:[^/]+\/)*([A-Za-z]+)[_-]([A-Za-z0-9]{1,3})\.png$/i.exec(pngRel)
-  if (!m) return null
-  return { set: slugify(m[1]), variantId: m[2].toLowerCase(), label: m[2].toUpperCase() }
-}
+export const rules = [
+  { test: /^base\/.*Rigged to Head Bone\/.*\/eyebrows?\w*\.(glb|gltf)$/i, kind: 'part', slot: 'eyebrows' },
+  { test: /^base\/.*Rigged to Head Bone\/.*\/hair\w*\.(glb|gltf)$/i, kind: 'part', slot: 'hair' },
+  { test: /^base\/.*Base Characters\/.*\.(glb|gltf)$/i, kind: 'base' },
+  { test: /^outfits\/.*Modular Parts\/.*_(body|torso|chest|shirt|robe)\w*\.(glb|gltf)$/i, kind: 'part', slot: 'body' },
+  { test: /^outfits\/.*Modular Parts\/.*_(arms?|sleeves?|gloves?|bracers?)\w*\.(glb|gltf)$/i, kind: 'part', slot: 'arms' },
+  { test: /^outfits\/.*Modular Parts\/.*_(legs?|pants|trousers|skirt)\w*\.(glb|gltf)$/i, kind: 'part', slot: 'legs' },
+  { test: /^outfits\/.*Modular Parts\/.*_(feet|foot|boots?|shoes?)\w*\.(glb|gltf)$/i, kind: 'part', slot: 'feet' },
+  { test: /^outfits\/.*Modular Parts\/.*\.(glb|gltf)$/i, kind: 'part', slot: 'accessory' },
+  { test: /^anim\/(?!.*_RM\.).*\.(glb|gltf)$/i, kind: 'animation' },
+]

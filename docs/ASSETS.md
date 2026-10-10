@@ -1,32 +1,40 @@
 # 素材下载与放置说明
 
-本项目不带任何 3D 模型。模型来自 Quaternius 的免费素材包，所有部件共用同一副 65 关节骨骼，所以可以互相组合。请按下面步骤下载并解压到指定目录，然后运行脚本生成 `public/avatar/manifest.json`。
+本项目的模型来自 Quaternius 的免费素材包，所有部件共用同一副 65 关节骨骼，所以可以互相组合。脚本生成的 `public/avatar/` 已经提交在仓库里，只有需要重新生成或加新素材时才用本说明。
 
 ## 1. 下载
 
 | 包 | 下载地址 | 下载哪个文件 | 免费层包含 |
 |---|---|---|---|
-| Universal Base Characters（底模与发型） | https://quaternius.itch.io/universal-base-characters | Standard zip，约 122 MB | 2 个底模、5 个发型 |
-| Modular Character Outfits - Fantasy（服装部件） | https://quaternius.itch.io/modular-character-outfits-fantasy | Standard zip，约 280 MB | Ranger、Peasant 两套 |
+| Universal Base Characters（底模与发型） | https://quaternius.itch.io/universal-base-characters | Standard zip，约 122 MB | 2 个底模、8 个发型眉毛 |
+| Modular Character Outfits - Fantasy（服装部件） | https://quaternius.itch.io/modular-character-outfits-fantasy | Standard zip，约 280 MB | Ranger、Peasant 两套，男女各一 |
 | Universal Animation Library（动画，取 Idle） | https://quaternius.itch.io/universal-animation-library | Standard zip，约 13 MB | 45 个动画 |
 
-操作：打开页面，点「Download Now」，弹出付费框时选「No thanks, just take me to the downloads」，然后只下载 Standard zip。想要全部底模、发型和 12 套服装，前两个包各约 20 美元，下载 Standard 即可，Source 是 Blender 工程不需要。
-
-许可：itch 页面标注 CC0，以 zip 内 LICENSE 文件为准。
+页面点「Download Now」，付费框里选「No thanks, just take me to the downloads」。许可以 zip 内 LICENSE 文件为准，itch 页面标注 CC0。
 
 ## 2. 解压到这些目录
 
 ```
 avatar-dressup/
   assets-src/
-    base/      <- Universal Base Characters 解压后的全部内容
-    outfits/   <- Modular Character Outfits - Fantasy 解压后的全部内容
-    anim/      <- Universal Animation Library 解压后的全部内容
+    base/      <- Universal Base Characters 的 zip 解压到这里
+    outfits/   <- Modular Character Outfits - Fantasy 的 zip 解压到这里
+    anim/      <- Universal Animation Library 的 zip 解压到这里
 ```
 
-子目录层级不限，脚本会递归扫描。`assets-src/` 已在 `.gitignore` 里，不会提交。
+PowerShell 里可以这样解压：
 
-## 3. 生成 manifest
+```powershell
+Expand-Archive -LiteralPath "Universal Base Characters[Standard].zip" -DestinationPath assets-src/base -Force
+Expand-Archive -LiteralPath "Modular Character Outfits - Fantasy[Standard].zip" -DestinationPath assets-src/outfits -Force
+Expand-Archive -LiteralPath "Universal Animation Library[Standard].zip" -DestinationPath assets-src/anim -Force
+```
+
+`assets-src/` 不进 git。脚本只读这些子目录：底模的 `Base Characters`、发型眉毛的 `Rigged to Head Bone`、服装的 `Modular Parts`、动画里不带 `_RM` 的文件。`Origin at 0` 的静态发型、`Outfits` 整套文件、FBX 目录都会被忽略。
+
+素材包里有两个 `.gltf` 引用的贴图名比磁盘上的多一个 `_png` 后缀，脚本读取前会自动从正确命名复制一份补上，输出里会打印「修复:」。
+
+## 3. 生成
 
 先看脚本识别到了什么：
 
@@ -34,18 +42,14 @@ avatar-dressup/
 npm run assets:scan
 ```
 
-它会列出每个 glb/gltf 文件、网格名、骨骼数、动画名，以及所有 PNG 贴图。如果某些文件归类不对，改 `scripts/manifest.config.mjs` 里的 `rules`。
-
-然后生成：
+再生成，脚本会去重、裁剪、把贴图缩到 1024 并转 webp，输出单文件 glb；动画只保留 `Idle_Loop` 一个剪辑：
 
 ```bash
 npm run assets:build
 ```
 
-输出 `public/avatar/manifest.json`，并把模型复制为单文件 glb 到 `public/avatar/models/`，贴图到 `public/avatar/textures/`，动画到 `public/avatar/anim/`。加 `-- --optimize` 可做网格去重与贴图缩放。
+输出 `public/avatar/manifest.json`、`public/avatar/models/`、`public/avatar/anim/`，全部进 git。生成后再跑一次 `npm run fonts:build`，让标题字体包含新的部件名。
 
-## 4. 启动
+## 4. 加新素材
 
-```bash
-npm run dev
-```
+把新文件放进对应目录，若 `assets:scan` 归类不对，改 `scripts/manifest.config.mjs` 里的 `rules`、`setLabels`、`pieceLabels`、`nameLabels`，不要改脚本逻辑。
