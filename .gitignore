@@ -8,3 +8,4 @@ assets-src/
 *.local
 .DS_Store
 .claude/launch.json
+public/landing/src/

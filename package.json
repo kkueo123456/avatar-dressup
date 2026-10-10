@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "assets:scan": "node scripts/build-manifest.mjs --scan",
     "assets:build": "node scripts/build-manifest.mjs",
-    "fonts:build": "node scripts/build-fonts.mjs"
+    "fonts:build": "node scripts/build-fonts.mjs",
+    "landing:webp": "node scripts/landing-webp.mjs"
   },
   "dependencies": {
     "@types/three": "^0.186.0",

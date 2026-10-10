@@ -1,11 +1,20 @@
-import Link from 'next/link'
+import Features from '../components/landing/Features'
+import Hero from '../components/landing/Hero'
+import SiteFooter from '../components/landing/SiteFooter'
+import SiteNav from '../components/landing/SiteNav'
+import Steps from '../components/landing/Steps'
+import styles from '../components/landing/landing.module.css'
 
 export default function HomePage() {
   return (
-    <main style={{ padding: 32 }}>
-      <h1 className="font-display">Avatar Dressup</h1>
-      <p>首页建设中。</p>
-      <Link href="/create" className="btn-primary">开始创建</Link>
-    </main>
+    <div className={styles.page}>
+      <SiteNav />
+      <main>
+        <Hero />
+        <Features />
+        <Steps />
+      </main>
+      <SiteFooter />
+    </div>
   )
 }
