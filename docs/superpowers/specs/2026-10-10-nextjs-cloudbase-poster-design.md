@@ -34,8 +34,9 @@ B 和 C 各自另写设计文档。本文只在第 10 节写出 A 必须为它�
 
 目标：
 
-- 打开站点即进入换装页，能按七个槽位换装、一键套装、切换底模、播放待机动画、聚焦头部或全身。
-- 顶栏「生成海报」：截图后由服务端假适配器做风格化，弹窗展示并可下载。
+- 打开站点先看到首页介绍页：一句话说清产品、一个「开始创建」入口、三个能力区块、三步流程。结构参照 hyper3d.ai 的首页骨架，视觉按本文第 4 节的设计系统。
+- 点「开始创建」进入 `/create` 换装页，能按七个槽位换装、一键套装、切换底模、播放待机动画、聚焦头部或全身。
+- 换装页顶栏「生成海报」：截图后由服务端假适配器做风格化，弹窗展示并可下载。
 - 部署在云托管默认域名上可访问，模型贴图随站点一起提供。
 - 设计系统落地为全局令牌，界面与画板一致。
 
@@ -101,10 +102,16 @@ B 和 C 各自另写设计文档。本文只在第 10 节写出 A 必须为它�
 avatar-dressup/
   app/
     layout.tsx             全局壳：字体、令牌、lang="zh-CN"
-    page.tsx               换装页，只挂 DressUp
+    page.tsx               首页介绍页，服务端组件，不加载 three 与模型
+    create/page.tsx        换装页，只挂 DressUp
     globals.css            设计系统令牌与基础样式
     api/poster/route.ts    POST /api/poster
   components/
+    landing/SiteNav.tsx    首页顶栏：字标、GitHub 链接、开始创建
+    landing/Hero.tsx       首屏：标题、一句话、开始创建、三张海报示意
+    landing/Features.tsx   三个能力卡
+    landing/Steps.tsx      三步流程
+    landing/SiteFooter.tsx 页脚：GitHub、素材致谢
     DressUp.tsx            页面主体，创建 store、viewer、viewerSync
     Viewport.tsx           客户端组件，useEffect 建 AvatarViewer，底部芯片与截图按钮
     TopBar.tsx             字标、生成海报按钮
@@ -124,6 +131,7 @@ avatar-dressup/
     types/manifest.ts      去掉 bodyMeshes、headMeshes
   scripts/                 build-manifest.mjs、lib/classify.mjs、manifest.config.mjs
   public/avatar/           脚本输出，进 git
+  public/landing/          首页用的三张假海报与一张换装页截图，WebP
   app/fonts/               两款自托管字体的 woff2，由 next/font/local 引用
   tests/
   Dockerfile  next.config.ts  .env.example  .npmrc
@@ -180,7 +188,7 @@ interface AvatarStore {
 - `Viewport`：容器 div 交给 `AvatarViewer`。底部芯片：底模下拉（切换后用 `setBase` 返回值弹一条「已卸下 N 件不匹配部件」提示）、全身或头部分段、动画名只显示。右下截图按钮下载当前视图。
 - `PartsPanel`：顶部两张套装卡（来自 manifest.presets），当前套装高亮；部位 tab 顺序与 `slots` 一致，没有部件的槽位不显示；网格三列，单选槽位第一格固定「无」；底部摘要「已装 N 件 · 套装名 · 底模名」加重置。
 - `PartCard`：缩略图未就绪显示名称；加载中显示转圈；失败置灰并带 title 提示。
-- `TopBar`：字标、「生成海报」主按钮。B 之前不显示「我的形象」与账号。
+- `TopBar`：字标链接回首页、「生成海报」主按钮。B 之前不显示「我的形象」与账号。
 
 ### 6.6 海报
 
@@ -218,6 +226,18 @@ export interface PosterProvider {
 - 不再写 bodyMeshes、headMeshes。
 - 输出进 git：`.gitignore` 去掉 `public/avatar/models/`、`textures/`、`anim/`，预计 20 到 40 MB。
 
+### 6.8 首页
+
+路由 `/`，服务端组件，静态渲染，不引入 three、store 和模型。目标是打开即显示、首屏体积小于 1 MB。自上而下四段，结构参照 hyper3d.ai 首页的骨架，文案与视觉是自己的：
+
+1. **顶栏。** 字标（链接 `/`）、GitHub 仓库链接、「开始创建」胶囊主按钮（链接 `/create`）。
+2. **首屏。** 左侧大标题两行，站酷庆科黄油体，例如「创建你的 3D 形象 / 换装，再让 AI 画成海报」；一句话副标；「开始创建」主按钮。右侧三张假海报卡片错落叠放，带轻微浮动动画，`prefers-reduced-motion` 时静止。海报图来自 A3 阶段用假适配器生成的真实截图，导出 WebP 放 `public/landing/`。背景用 --ground 加一处径向辉光，不用整屏渐变。
+3. **三个能力卡。** 换装：七个部位、两套服装、两个底模；动画与视角：待机动画、头部与全身聚焦、一键截图；AI 海报：四种风格、一键生成、直接下载。每卡一张小图或图标，不写数字统计。
+4. **三步流程。** 选底模 → 换衣服 → 生成海报，每步一句话。末尾再放一次「开始创建」。
+5. **页脚。** GitHub 链接、素材来源「Quaternius，CC0」致谢、年份。
+
+不放的东西：价格、用户数、评价、登录入口（B 再加）。标题与副标文案在实施时定稿，本文只定结构。
+
 ## 7. 部署
 
 - `next.config.ts`：`output: 'standalone'`。
@@ -253,6 +273,7 @@ export interface PosterProvider {
 - M1：本地底模渲染，换一件上衣无错位，动画时衣服跟随，观察穿模程度。
 - M2：七个槽位、预设、底模切换、缩略图。
 - M3：云托管默认域名上生成假海报并下载。
+- M4：首页在云托管默认域名上打开不加载 three 与模型，点「开始创建」进入换装页。
 
 ## 10. 为 B 与 C 预留
 
@@ -265,11 +286,12 @@ export interface PosterProvider {
 
 | 里程碑 | 内容 | 验收 |
 |---|---|---|
-| A0 | 迁移骨架：Next 项目结构、令牌与字体、3D 层与规则层搬入、测试通过、删除 Vue 相关文件 | `npm run build` 与 `npm test` 通过，页面显示空壳 |
+| A0 | 迁移骨架：Next 项目结构、`/` 与 `/create` 两个空壳路由、令牌与字体、3D 层与规则层搬入、测试通过、删除 Vue 相关文件 | `npm run build` 与 `npm test` 通过，两个路由显示空壳 |
 | A1 | 资源脚本改造并生成资源进 git；Viewport 渲染底模与一件上衣 | M1 |
 | A2 | store、viewerSync、PartsPanel、套装、底模切换、缩略图 | M2 |
 | A3 | 海报接口、假适配器、弹窗、截图下载 | 本地生成并下载 |
-| A4 | Dockerfile、本地镜像跑通、云托管部署、环境变量 | M3 |
+| A4 | 首页四段与页脚，用 A3 产出的假海报做首屏素材 | 本地首页完整，点入换装页 |
+| A5 | Dockerfile、本地镜像跑通、云托管部署、环境变量 | M3、M4 |
 
 ## 12. 风险
 
