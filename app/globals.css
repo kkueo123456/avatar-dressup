@@ -1,0 +1,59 @@
+/* 设计系统令牌：单主题暗色，来自画板「设计系统」 */
+:root {
+  color-scheme: dark;
+  --ground: #0F0E14;
+  --panel: #13121A;
+  --card: #1B1A23;
+  --card-raised: #1F1E28;
+  --line: #2A2834;
+  --line-hover: #3A3846;
+  --line-soft: #23222C;
+  --text: #EFEDF3;
+  --muted: #A09DAE;
+  --accent: #E8A445;
+  --accent-hover: #F2B85C;
+  --on-accent: #1A1206;
+  --ai: #AE98F2;
+  --ok: #6FCF97;
+  --warn: #F2C94C;
+  --error: #EB7A7A;
+  --font-body: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", system-ui, sans-serif;
+  --radius-card: 14px;
+  --radius-pill: 999px;
+  --topbar-h: 64px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
+button { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--ai); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* 字体角色：变量由 app/layout.tsx 的 next/font 注入，没注入时退回正文字体 */
+.font-display { font-family: var(--font-huangyou, var(--font-body)); font-weight: 400; letter-spacing: 0.06em; }
+.font-mark { font-family: var(--font-orbitron, var(--font-body)); font-weight: 700; letter-spacing: 0.18em; }
+
+/* 两种胶囊按钮 */
+.btn-primary, .btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 20px; border-radius: var(--radius-pill);
+  font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.btn-primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-ghost { border: 1px solid var(--line); background: #17161E; color: var(--text); }
+.btn-ghost:hover { border-color: var(--line-hover); background: var(--card-raised); }

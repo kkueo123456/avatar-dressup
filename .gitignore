@@ -1,8 +1,10 @@
 node_modules
-dist
+.next
+out
+*.tsbuildinfo
+next-env.d.ts
 assets-src/
-public/avatar/models/
-public/avatar/textures/
-public/avatar/anim/
+.env*.local
 *.local
 .DS_Store
+.claude/launch.json
