@@ -5,6 +5,7 @@ import { loadManifest } from '@/data/manifest'
 import { assetUrl } from '@/data/assetUrl'
 import { createAvatarStore, type AvatarStore } from '@/state/avatarStore'
 import { createViewerSync } from '@/state/viewerSync'
+import { clearError, updateLoading } from '@/state/loadState'
 import { AvatarViewer } from '@/avatar/AvatarViewer'
 import { ThumbnailRenderer } from '@/avatar/ThumbnailRenderer'
 import { DressUpContext } from './DressUpContext'
@@ -61,12 +62,9 @@ export default function DressUp() {
       return
     }
     v.on('loading', (stage, id) => {
-      setLoadingIds((prev) => {
-        const next = new Set(prev)
-        if (stage === 'start') next.add(id)
-        else next.delete(id)
-        return next
-      })
+      setLoadingIds((prev) => updateLoading(prev, stage, id))
+      // 重新开始加载就清掉上次的错误，一次网络抖动不该让这件部件整个会话都置灰
+      if (stage === 'start') setErrors((prev) => clearError(prev, id))
     })
     const sync = createViewerSync(store, v, manifest, (id, err) => {
       setErrors((prev) => new Map(prev).set(id, reasonOf(err)))

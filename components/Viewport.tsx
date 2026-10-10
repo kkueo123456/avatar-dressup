@@ -19,7 +19,8 @@ export default function Viewport({ containerRef }: { containerRef: RefObject<HTM
     return () => clearTimeout(t)
   }, [toast])
 
-  const baseError = manifest.bases.map((b) => errors.get(b.id)).find(Boolean)
+  // 只看当前底模的错误；换到别的底模成功后遮罩就该消失
+  const baseError = errors.get(base.id)
   const busy = loadingIds.size > 0
   const animLabel = manifest.animations[0]?.label ?? '无'
 

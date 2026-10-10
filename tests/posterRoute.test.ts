@@ -43,6 +43,14 @@ describe('POST /api/poster', () => {
     expect((await res.json()).error).toBe('海报服务未配置: POSTER_PROVIDER=')
   })
 
+  it('请求体超过上限时直接 400，不解析 JSON 也不找适配器', async () => {
+    process.env.POSTER_PROVIDER = 'nope' // 若走到了适配器会变成 500
+    const huge = `{"image":"${'A'.repeat(7 * 1024 * 1024)}","style":"anime"}`
+    const res = await POST(req(huge))
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: '图片超过 4 MB' })
+  })
+
   it('成功时返回 image/jpeg 且不缓存', async () => {
     process.env.POSTER_PROVIDER = 'mock'
     const res = await POST(req({ image: await jpegDataUrl(), style: 'fantasy' }))

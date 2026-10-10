@@ -69,4 +69,11 @@ describe('mockProvider', () => {
     }
     expect(new Set(outs).size).toBe(4)
   }, 20000)
+
+  it('输入像素超过上限的 JPEG 在解码前就被拒绝', async () => {
+    const big = await sharp({ create: { width: 3000, height: 3000, channels: 3, background: '#333333' } })
+      .jpeg({ progressive: true })
+      .toBuffer()
+    await expect(mockProvider.generate({ image: big, style: 'anime' })).rejects.toThrow(/pixel limit/i)
+  }, 20000)
 })

@@ -1,6 +1,14 @@
 import sharp from 'sharp'
 import { POSTER_HEIGHT, POSTER_WIDTH, type PosterInput, type PosterProvider, type PosterStyle } from './types'
 
+/**
+ * 前端固定发 768 乘 1152，留 4 倍余量。超过的输入按文件头尺寸在解码前拒绝，
+ * 防止一张几百 KB 的渐进式 JPEG 声明 16k 乘 16k 把 0.5 GB 的容器撑爆。
+ */
+const MAX_INPUT_PIXELS = 2048 * 3072
+// 0.25 核的容器上别让 libvips 按宿主机 CPU 数开线程池
+sharp.concurrency(1)
+
 interface StyleParams {
   /** 色相偏移，度 */
   hue: number
@@ -41,7 +49,7 @@ export const mockProvider: PosterProvider = {
   async generate({ image, style }: PosterInput): Promise<Buffer> {
     const p = STYLE_PARAMS[style]
     const date = new Date().toISOString().slice(0, 10)
-    return sharp(image)
+    return sharp(image, { limitInputPixels: MAX_INPUT_PIXELS })
       .resize(POSTER_WIDTH, POSTER_HEIGHT, { fit: 'cover' })
       .modulate({ brightness: p.brightness, saturation: p.saturation, hue: p.hue })
       .gamma(p.gamma)
