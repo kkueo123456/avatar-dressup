@@ -1,10 +1,9 @@
 import {
   AnimationClip, AnimationMixer, type Bone, Box3, Group, LoopRepeat, type Material,
-  type Mesh, type MeshStandardMaterial, type Object3D, SRGBColorSpace, type Skeleton,
-  type SkinnedMesh, type Texture, TextureLoader, Vector3,
+  type Mesh, type Object3D, type Skeleton, type SkinnedMesh, Vector3,
 } from 'three'
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'
-import type { AnimationRef, BaseModel, Part, Variant } from '@/types/manifest'
+import type { AnimationRef, BaseModel, Part } from '@/types/manifest'
 import type { GltfSource, LoadedGltf } from './PartLoader'
 import { buildBoneMap, collectSkinnedMeshes, rebindToSkeleton } from './rebind'
 
@@ -20,9 +19,6 @@ export class PartBindError extends Error {
 
 interface EquippedPart {
   meshes: SkinnedMesh[]
-  originalMaps: Map<SkinnedMesh, Texture | null>
-  variantTexture: Texture | null
-  variantRequest: number
 }
 
 export class AvatarRig {
@@ -30,7 +26,6 @@ export class AvatarRig {
   private skeleton: Skeleton | null = null
   private boneByName = new Map<string, Bone>()
   private baseScene: Object3D | null = null
-  private bodyMeshes: Mesh[] = []
   private readonly equipped = new Map<string, EquippedPart>()
   private readonly pending = new Set<string>()
   private mixer: AnimationMixer | null = null
@@ -39,7 +34,6 @@ export class AvatarRig {
   constructor(
     private readonly source: GltfSource,
     private readonly resolveUrl: (p: string) => string,
-    private readonly textures: { loadAsync(url: string): Promise<Texture> } = new TextureLoader(),
   ) {
     this.root.name = 'avatar'
   }
@@ -52,9 +46,6 @@ export class AvatarRig {
   }
   get equippedIds(): string[] {
     return [...this.equipped.keys()]
-  }
-  get bodyVisible(): boolean {
-    return this.bodyMeshes.every((m) => m.visible)
   }
   getBone(name: string): Bone | undefined {
     return this.boneByName.get(name)
@@ -78,9 +69,6 @@ export class AvatarRig {
       if (!mesh.isMesh) return
       mesh.frustumCulled = false
       mesh.castShadow = true
-      if (base.bodyMeshes.includes(mesh.name) && !base.headMeshes.includes(mesh.name)) {
-        this.bodyMeshes.push(mesh)
-      }
     })
     this.baseScene = scene
     this.root.add(scene)
@@ -99,7 +87,6 @@ export class AvatarRig {
     this.mixer = null
     this.skeleton = null
     this.boneByName = new Map()
-    this.bodyMeshes = []
   }
 
   async equip(part: Part): Promise<void> {
@@ -123,15 +110,13 @@ export class AvatarRig {
       const missing = rebindToSkeleton(mesh, this.boneByName)
       if (missing.length) throw new PartBindError(part.id, missing)
     }
-    const originalMaps = new Map<SkinnedMesh, Texture | null>()
     for (const mesh of meshes) {
-      const material = (mesh.material as Material).clone() as MeshStandardMaterial
-      mesh.material = material
-      originalMaps.set(mesh, material.map ?? null)
+      // 材质复制一份：缩略图渲染器和主视口共用加载器缓存，不能改原件
+      mesh.material = (mesh.material as Material).clone()
       mesh.castShadow = true
       this.root.add(mesh)
     }
-    this.equipped.set(part.id, { meshes, originalMaps, variantTexture: null, variantRequest: 0 })
+    this.equipped.set(part.id, { meshes })
   }
 
   unequip(partId: string): void {
@@ -143,42 +128,7 @@ export class AvatarRig {
       mesh.skeleton.dispose()
       ;(mesh.material as Material).dispose()
     }
-    entry.variantTexture?.dispose()
     this.equipped.delete(partId)
-  }
-
-  setBodyVisible(visible: boolean): void {
-    for (const m of this.bodyMeshes) m.visible = visible
-  }
-
-  async setVariant(part: Part, variant: Variant | null): Promise<void> {
-    const entry = this.equipped.get(part.id)
-    if (!entry) return
-    const request = ++entry.variantRequest
-    if (!variant) {
-      for (const mesh of entry.meshes) {
-        const mat = mesh.material as MeshStandardMaterial
-        mat.map = entry.originalMaps.get(mesh) ?? null
-        mat.needsUpdate = true
-      }
-      entry.variantTexture?.dispose()
-      entry.variantTexture = null
-      return
-    }
-    const tex = await this.textures.loadAsync(this.resolveUrl(variant.textures.map))
-    tex.colorSpace = SRGBColorSpace
-    tex.flipY = false
-    if (this.equipped.get(part.id) !== entry || entry.variantRequest !== request) {
-      tex.dispose()
-      return
-    }
-    for (const mesh of entry.meshes) {
-      const mat = mesh.material as MeshStandardMaterial
-      mat.map = tex
-      mat.needsUpdate = true
-    }
-    entry.variantTexture?.dispose()
-    entry.variantTexture = tex
   }
 
   async playAnimation(anim: AnimationRef): Promise<void> {

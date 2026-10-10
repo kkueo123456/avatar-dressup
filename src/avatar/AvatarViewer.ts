@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
-import type { AnimationRef, BaseModel, Part, Variant } from '@/types/manifest'
+import type { AnimationRef, BaseModel, Part } from '@/types/manifest'
 import { AvatarRig } from './AvatarRig'
 import { PartLoader } from './PartLoader'
 
@@ -40,6 +40,7 @@ export class AvatarViewer {
   constructor(
     private readonly container: HTMLElement,
     resolveUrl: (p: string) => string,
+    options: { background: string },
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -87,7 +88,7 @@ export class AvatarViewer {
     this.rig = new AvatarRig(this.loader, resolveUrl)
     this.scene.add(this.rig.root)
 
-    this.applyBackgroundFromCss()
+    this.scene.background = new THREE.Color(options.background)
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(container)
     this.resize()
@@ -96,11 +97,6 @@ export class AvatarViewer {
 
   on<K extends keyof ViewerEvents>(event: K, fn: ViewerEvents[K]): void {
     this.listeners[event] = fn
-  }
-
-  applyBackgroundFromCss(): void {
-    const css = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()
-    if (css) this.scene.background = new THREE.Color(css)
   }
 
   resize(): void {
@@ -181,19 +177,6 @@ export class AvatarViewer {
     this.rig.unequip(partId)
   }
 
-  setBodyVisible(visible: boolean): void {
-    this.rig.setBodyVisible(visible)
-  }
-
-  async setVariant(part: Part, variant: Variant | null): Promise<void> {
-    try {
-      await this.rig.setVariant(part, variant)
-    } catch (e) {
-      this.listeners.error?.(part.id, reasonOf(e))
-      throw e
-    }
-  }
-
   async playAnimation(anim: AnimationRef): Promise<void> {
     try {
       await this.rig.playAnimation(anim)
@@ -203,7 +186,7 @@ export class AvatarViewer {
     }
   }
 
-  screenshot(width = 512, height = 768, quality = 0.8): string {
+  screenshot(width = 768, height = 1152, quality = 0.85): string {
     const size = this.renderer.getSize(new THREE.Vector2())
     const pixelRatio = this.renderer.getPixelRatio()
     const aspect = this.camera.aspect

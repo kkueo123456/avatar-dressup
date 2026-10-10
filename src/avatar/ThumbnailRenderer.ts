@@ -1,20 +1,19 @@
 import * as THREE from 'three'
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'
-import { get, set } from 'idb-keyval'
 import type { Part } from '@/types/manifest'
 import type { GltfSource } from './PartLoader'
 
+/** 离屏渲染部件缩略图，按部件 id 做内存缓存；页面刷新后重新渲染 */
 export class ThumbnailRenderer {
   private renderer: THREE.WebGLRenderer | null = null
   private readonly scene = new THREE.Scene()
   private readonly camera = new THREE.PerspectiveCamera(35, 1, 0.01, 50)
-  private readonly memory = new Map<string, string>()
+  private readonly memory = new Map<string, Promise<string>>()
   private queue: Promise<unknown> = Promise.resolve()
 
   constructor(
     private readonly source: GltfSource,
     private readonly resolveUrl: (p: string) => string,
-    private readonly version: number,
     private readonly size = 128,
   ) {
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x667788, 1.2))
@@ -24,38 +23,17 @@ export class ThumbnailRenderer {
   }
 
   get(part: Part): Promise<string> {
-    const run = () => this.produce(part)
+    const hit = this.memory.get(part.id)
+    if (hit) return hit
+    const run = () => this.render(part)
     const p = this.queue.then(run, run)
     this.queue = p.catch(() => undefined)
-    return p
-  }
-
-  private cacheKey(part: Part): string {
-    return `thumb:${this.version}:${part.id}`
-  }
-
-  private async produce(part: Part): Promise<string> {
-    const key = this.cacheKey(part)
-    const mem = this.memory.get(key)
-    if (mem) return mem
-    let cached: string | undefined
-    try {
-      cached = await get<string>(key)
-    } catch {
-      cached = undefined
-    }
-    if (cached) {
-      this.memory.set(key, cached)
-      return cached
-    }
-    const url = await this.render(part)
-    this.memory.set(key, url)
-    try {
-      await set(key, url)
-    } catch {
-      // IndexedDB 不可用时只保留内存缓存
-    }
-    return url
+    const stored = p.catch((e: unknown) => {
+      this.memory.delete(part.id)
+      throw e
+    })
+    this.memory.set(part.id, stored)
+    return stored
   }
 
   private async render(part: Part): Promise<string> {
@@ -80,8 +58,7 @@ export class ThumbnailRenderer {
       this.camera.position.set(center.x + dist * 0.4, center.y + dist * 0.3, center.z + dist * 0.85)
       this.camera.lookAt(center)
       this.renderer.render(this.scene, this.camera)
-      const dataUrl = this.renderer.domElement.toDataURL('image/png')
-      return dataUrl
+      return this.renderer.domElement.toDataURL('image/png')
     } finally {
       this.scene.remove(obj)
     }
