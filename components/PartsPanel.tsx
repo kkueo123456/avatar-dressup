@@ -1,0 +1,124 @@
+'use client'
+import { useEffect } from 'react'
+import { useStore } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
+import type { Preset } from '@/types/manifest'
+import {
+  selectBase, selectCurrentPreset, selectEquippedCount, selectEquippedIds, selectPartsInActiveSlot, selectVisibleSlots,
+} from '@/state/avatarStore'
+import { useDressUp } from './DressUpContext'
+import PartCard from './PartCard'
+import SlotIcon from './SlotIcon'
+import styles from './dressup.module.css'
+
+/** 套装卡上的色块：按套装名取色，没列的用默认 */
+const PRESET_SWATCH: Record<string, string> = {
+  ranger: 'linear-gradient(135deg, #5A6A42, #2B3322)',
+  peasant: 'linear-gradient(135deg, #8A6B4A, #4A3826)',
+}
+
+export default function PartsPanel() {
+  const { manifest, store, loadingIds, errors } = useDressUp()
+  const activeSlot = useStore(store, (s) => s.activeSlot)
+  const base = useStore(store, (s) => selectBase(manifest, s))
+  const visibleSlots = useStore(store, useShallow((s) => selectVisibleSlots(manifest, s)))
+  const parts = useStore(store, useShallow((s) => selectPartsInActiveSlot(manifest, s)))
+  const equippedIds = useStore(store, useShallow((s) => selectEquippedIds(s)))
+  const count = useStore(store, selectEquippedCount)
+  const currentPreset = useStore(store, (s) => selectCurrentPreset(manifest, s))
+
+  // 当前底模下激活的槽位没有部件时，跳到第一个有部件的槽位
+  useEffect(() => {
+    if (visibleSlots.length && !visibleSlots.some((s) => s.id === activeSlot)) {
+      store.getState().setActiveSlot(visibleSlots[0].id)
+    }
+  }, [visibleSlots, activeSlot, store])
+
+  const slot = manifest.slots.find((s) => s.id === activeSlot)
+  // 从已订阅的派生值推出来，不在渲染期读 getState
+  const slotEmpty = !parts.some((p) => equippedIds.includes(p.id))
+  const hint = slot ? (slot.multiple ? '可多选' : '单选') : ''
+
+  function presetMeta(p: Preset): string {
+    const n = Object.keys(p.parts).length
+    return currentPreset?.id === p.id ? `${n} 件 · 已装` : `${n} 件`
+  }
+
+  return (
+    <aside className={styles.panel} aria-label="部件面板">
+      <div className={styles.section}>
+        <div className={styles.sectionHead}>
+          <h2 className={`font-display ${styles.sectionTitle}`}>一键套装</h2>
+          <span className={styles.sectionHint}>装上一件会自动补齐整套</span>
+        </div>
+        <div className={styles.presetGrid}>
+          {manifest.presets.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`${styles.presetCard} ${currentPreset?.id === p.id ? styles.presetCardActive : ''}`}
+              onClick={() => store.getState().applyPreset(p)}
+            >
+              <span aria-hidden="true" className={styles.presetSwatch} style={{ background: PRESET_SWATCH[p.id] ?? 'linear-gradient(135deg, #4A4458, #2A2634)' }} />
+              <span>
+                <span className={styles.presetName}>{p.label}</span>
+                <br />
+                <span className={styles.presetMeta}>{presetMeta(p)}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.tabs} role="tablist" aria-label="部位">
+        {visibleSlots.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            role="tab"
+            aria-selected={s.id === activeSlot}
+            className={`${styles.tab} ${s.id === activeSlot ? styles.tabActive : ''}`}
+            onClick={() => store.getState().setActiveSlot(s.id)}
+          >
+            <SlotIcon slotId={s.id} />
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.gridHead}>
+        <span className={styles.gridTitle}>{slot?.label ?? ''}</span>
+        <span className={styles.sectionHint}>{hint}</span>
+      </div>
+
+      <div className={styles.grid}>
+        {slot && !slot.multiple && (
+          <button
+            type="button"
+            className={`${styles.part} ${slotEmpty ? styles.partSelected : ''}`}
+            onClick={() => store.getState().unequip(slot.id)}
+            aria-pressed={slotEmpty}
+          >
+            <span className={`${styles.thumb} ${styles.thumbNone}`} />
+            <span className={`${styles.partLabel} ${slotEmpty ? styles.partLabelSelected : ''}`}>无</span>
+          </button>
+        )}
+        {parts.map((p) => (
+          <PartCard
+            key={p.id}
+            part={p}
+            selected={equippedIds.includes(p.id)}
+            loading={loadingIds.has(p.id)}
+            error={errors.get(p.id)}
+            onClick={() => store.getState().toggle(p)}
+          />
+        ))}
+      </div>
+
+      <div className={styles.footer}>
+        <span>已装 {count} 件 · {currentPreset?.label ?? '混搭'} · {base.label}</span>
+        <button type="button" className={`btn-ghost ${styles.footerBtn}`} onClick={() => store.getState().reset()}>重置</button>
+      </div>
+    </aside>
+  )
+}

@@ -8,6 +8,7 @@ import { createViewerSync } from '@/state/viewerSync'
 import { AvatarViewer } from '@/avatar/AvatarViewer'
 import { ThumbnailRenderer } from '@/avatar/ThumbnailRenderer'
 import { DressUpContext } from './DressUpContext'
+import PartsPanel from './PartsPanel'
 import TopBar from './TopBar'
 import Viewport from './Viewport'
 import styles from './dressup.module.css'
@@ -105,7 +106,7 @@ export default function DressUp() {
         <TopBar />
         <div className={styles.main}>
           <Viewport containerRef={containerRef} />
-          <aside className={styles.panel} aria-label="部件面板" />
+          <PartsPanel />
         </div>
       </div>
     </DressUpContext.Provider>
