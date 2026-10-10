@@ -72,6 +72,8 @@ export default function DressUp() {
     const t = new ThumbnailRenderer(v.loader, assetUrl)
     setViewer(v)
     setThumbs(t)
+    // 开发期在控制台里能拿到视口对象排查 3D 问题；生产构建里这段会被去掉
+    if (process.env.NODE_ENV === 'development') (window as unknown as { __viewer?: AvatarViewer }).__viewer = v
     return () => {
       sync.stop()
       t.dispose()
