@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+assets-src
+public/landing/src
+docs
+tests
+*.zip
+*.pdf
+.env*.local
+.superpowers
+.claude
