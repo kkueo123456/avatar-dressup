@@ -7,8 +7,6 @@ export interface SaveRecord {
   baseId: string
   /** slotId -> partId[] */
   parts: Record<string, string[]>
-  /** partId -> variantId */
-  variants: Record<string, string>
   /** data:image/jpeg;base64,… */
   thumbnail: string
 }

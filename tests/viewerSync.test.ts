@@ -1,9 +1,10 @@
-import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import type { AnimationRef, BaseModel, Part, Variant } from '@/types/manifest'
-import { useAvatarState } from '@/state/useAvatarState'
+import type { AnimationRef, BaseModel, Part } from '@/types/manifest'
+import { createAvatarStore } from '@/state/avatarStore'
 import { createViewerSync, diffEquipped, type ViewerLike } from '@/state/viewerSync'
 import { makeManifest, part } from './fixtures/manifest'
+
+const tick = () => new Promise<void>((r) => setTimeout(r, 0))
 
 function deferred() {
   let resolve!: () => void
@@ -14,8 +15,6 @@ function deferred() {
 class FakeViewer implements ViewerLike {
   calls: string[] = []
   equipped = new Set<string>()
-  variants = new Map<string, string | null>()
-  body = true
   base = ''
   failEquip = new Set<string>()
   throwOnUnequip = false
@@ -30,15 +29,14 @@ class FakeViewer implements ViewerLike {
   unequip(id: string) {
     this.calls.push(`unequip:${id}`)
     if (this.throwOnUnequip) { this.throwOnUnequip = false; throw new Error('unequip boom') }
-    this.equipped.delete(id) }
-  setBodyVisible(v: boolean) { this.body = v }
-  async setVariant(p: Part, v: Variant | null) { this.variants.set(p.id, v?.id ?? null) }
+    this.equipped.delete(id)
+  }
   async playAnimation(a: AnimationRef) { this.calls.push(`anim:${a.id}`) }
 }
 
 function setup() {
   const m = makeManifest()
-  const store = useAvatarState(m)
+  const store = createAvatarStore(m)
   const viewer = new FakeViewer()
   const onError = vi.fn()
   const sync = createViewerSync(store, viewer, m, onError)
@@ -52,44 +50,51 @@ describe('diffEquipped', () => {
 })
 
 describe('createViewerSync', () => {
-  it('启动时设置底模、播放待机动画、身体可见', async () => {
+  it('启动时设置底模、播放待机动画', async () => {
     const { viewer, sync } = setup()
     await sync.idle()
     expect(viewer.calls).toEqual(['base:female_regular', 'anim:idle'])
-    expect(viewer.body).toBe(true)
   })
 
-  it('装一件服装后四件都装上，身体隐藏；卸下后调用 unequip', async () => {
+  it('装一件服装后四件都装上；卸下后调用 unequip', async () => {
     const { m, store, viewer, sync } = setup()
     await sync.idle()
-    store.equip(part(m, 'ranger_body'))
+    store.getState().equip(part(m, 'ranger_body'))
     await sync.idle()
     expect([...viewer.equipped].sort()).toEqual(['ranger_arms', 'ranger_body', 'ranger_feet', 'ranger_legs'])
-    expect(viewer.body).toBe(false)
-    store.unequip('body')
+    store.getState().unequip('body')
     await sync.idle()
     expect(viewer.calls).toContain('unequip:ranger_body')
     expect(viewer.equipped.has('ranger_body')).toBe(false)
+  })
+
+  it('只改 activeSlot 不会触发任何 viewer 调用', async () => {
+    const { store, viewer, sync } = setup()
+    await sync.idle()
+    const before = viewer.calls.length
+    store.getState().setActiveSlot('body')
+    await sync.idle()
+    expect(viewer.calls.length).toBe(before)
   })
 
   it('装失败的部件上报错误并从状态移除', async () => {
     const { m, store, viewer, sync, onError } = setup()
     viewer.failEquip.add('hood')
     await sync.idle()
-    store.equip(part(m, 'hood'))
+    store.getState().equip(part(m, 'hood'))
     await sync.idle()
     expect(onError).toHaveBeenCalledWith('hood', expect.any(Error))
-    expect(store.state.avatar.equipped.accessory).toEqual([])
+    expect(store.getState().avatar.equipped.accessory).toEqual([])
     expect(viewer.equipped.has('hood')).toBe(false)
   })
 
   it('换底模后重新装回仍匹配的部件', async () => {
     const { m, store, viewer, sync } = setup()
     await sync.idle()
-    store.equip(part(m, 'hair_f'))
-    store.equip(part(m, 'ranger_body'))
+    store.getState().equip(part(m, 'hair_f'))
+    store.getState().equip(part(m, 'ranger_body'))
     await sync.idle()
-    store.setBase(m.bases[1])
+    store.getState().setBase(m.bases[1])
     await sync.idle()
     expect(viewer.base).toBe('male_regular')
     expect(viewer.equipped.has('hair_f')).toBe(false)
@@ -97,25 +102,15 @@ describe('createViewerSync', () => {
     expect(viewer.calls.filter((c) => c === 'anim:idle')).toHaveLength(2)
   })
 
-  it('变体切换与恢复', async () => {
-    const { m, store, viewer, sync } = setup()
-    await sync.idle()
-    store.equip(part(m, 'ranger_body'))
-    await sync.idle()
-    store.setVariant('ranger_body', 'b')
-    await sync.idle()
-    expect(viewer.variants.get('ranger_body')).toBe('b')
-  })
-
   it('加载完成前卸下：最终不保留该部件', async () => {
     const { m, store, viewer, sync } = setup()
     await sync.idle()
     const gate = deferred()
     viewer.gates.set('ranger_body', gate.promise)
-    store.equip(part(m, 'ranger_body'))
-    for (let i = 0; i < 10 && !viewer.calls.includes('equip:ranger_body'); i++) await nextTick()
+    store.getState().equip(part(m, 'ranger_body'))
+    for (let i = 0; i < 10 && !viewer.calls.includes('equip:ranger_body'); i++) await tick()
     expect(viewer.calls).toContain('equip:ranger_body')
-    store.unequip('body')
+    store.getState().unequip('body')
     gate.resolve()
     await sync.idle()
     expect(viewer.equipped.has('ranger_body')).toBe(false)
@@ -125,14 +120,23 @@ describe('createViewerSync', () => {
   it('unequip 抛错不会毒化队列', async () => {
     const { m, store, viewer, sync, onError } = setup()
     await sync.idle()
-    store.equip(part(m, 'hood'))
+    store.getState().equip(part(m, 'hood'))
     await sync.idle()
     viewer.throwOnUnequip = true
-    store.unequip('accessory')
+    store.getState().unequip('accessory')
     await expect(sync.idle()).resolves.toBeUndefined()
     expect(onError).toHaveBeenCalledWith('sync', expect.any(Error))
-    store.equip(part(m, 'hair_f'))
+    store.getState().equip(part(m, 'hair_f'))
     await sync.idle()
     expect(viewer.calls).toContain('equip:hair_f')
+  })
+
+  it('stop 之后状态变化不再同步', async () => {
+    const { m, store, viewer, sync } = setup()
+    await sync.idle()
+    sync.stop()
+    store.getState().equip(part(m, 'hood'))
+    await tick()
+    expect(viewer.calls).not.toContain('equip:hood')
   })
 })

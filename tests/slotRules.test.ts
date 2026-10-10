@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  applyPreset, changeBase, computeBodyVisible, createEmptyState, equipPart,
-  partsForSlot, setVariant, unequipPart,
+  applyPreset, changeBase, createEmptyState, equipPart, isOutfitEmpty, partsForSlot, unequipPart,
 } from '@/avatar/slotRules'
 import { makeManifest, part } from './fixtures/manifest'
 
@@ -10,23 +9,24 @@ const female = m.bases[0]
 const male = m.bases[1]
 
 describe('createEmptyState', () => {
-  it('每个槽位都是空数组，底模身体可见', () => {
+  it('每个槽位都是空数组，服装为空', () => {
     const s = createEmptyState(m, female.id)
     expect(Object.keys(s.equipped).sort()).toEqual(m.slots.map((x) => x.id).sort())
     expect(Object.values(s.equipped).every((v) => v.length === 0)).toBe(true)
-    expect(computeBodyVisible(s, m.slots)).toBe(true)
+    expect(isOutfitEmpty(s, m.slots)).toBe(true)
+    expect('variants' in s).toBe(false)
   })
 })
 
 describe('equipPart', () => {
-  it('服装全空时装第一件会补全同套其余三件，并隐藏底模身体', () => {
+  it('服装全空时装第一件会补全同套其余三件', () => {
     const s0 = createEmptyState(m, female.id)
     const s1 = equipPart(s0, part(m, 'ranger_body'), m)
     expect(s1.equipped.body).toEqual(['ranger_body'])
     expect(s1.equipped.arms).toEqual(['ranger_arms'])
     expect(s1.equipped.legs).toEqual(['ranger_legs'])
     expect(s1.equipped.feet).toEqual(['ranger_feet'])
-    expect(computeBodyVisible(s1, m.slots)).toBe(false)
+    expect(isOutfitEmpty(s1, m.slots)).toBe(false)
     expect(s0.equipped.body).toEqual([])
   })
 
@@ -44,7 +44,6 @@ describe('equipPart', () => {
     s = equipPart(s, part(m, 'pauldron'), m)
     s = equipPart(s, part(m, 'hood'), m)
     expect(s.equipped.accessory).toEqual(['hood', 'pauldron'])
-    expect(computeBodyVisible(s, m.slots)).toBe(true)
   })
 
   it('没有 set 的服装不会触发补全', () => {
@@ -64,13 +63,11 @@ describe('equipPart', () => {
 })
 
 describe('unequipPart', () => {
-  it('卸下单个部件并清掉它的变体', () => {
+  it('卸下整个槽位', () => {
     let s = equipPart(createEmptyState(m, female.id), part(m, 'ranger_body'), m)
-    s = setVariant(s, 'ranger_body', 'b')
     s = unequipPart(s, 'body')
     expect(s.equipped.body).toEqual([])
-    expect(s.variants.ranger_body).toBeUndefined()
-    expect(computeBodyVisible(s, m.slots)).toBe(false)
+    expect(s.equipped.arms).toEqual(['ranger_arms'])
   })
 
   it('多选槽位只卸指定的一个', () => {
@@ -79,12 +76,6 @@ describe('unequipPart', () => {
     s = equipPart(s, part(m, 'pauldron'), m)
     s = unequipPart(s, 'accessory', 'hood')
     expect(s.equipped.accessory).toEqual(['pauldron'])
-  })
-
-  it('四个服装槽位全卸后底模身体重新可见', () => {
-    let s = equipPart(createEmptyState(m, female.id), part(m, 'ranger_body'), m)
-    for (const id of ['body', 'arms', 'legs', 'feet']) s = unequipPart(s, id)
-    expect(computeBodyVisible(s, m.slots)).toBe(true)
   })
 })
 
@@ -96,6 +87,15 @@ describe('applyPreset', () => {
     expect(s.equipped.body).toEqual(['peasant_body'])
     expect(s.equipped.feet).toEqual(['peasant_feet'])
     expect(s.equipped.hair).toEqual(['hair_f'])
+  })
+
+  it('预设里的部件性别不匹配时，换成同套同槽位里匹配底模的部件', () => {
+    const mm = makeManifest()
+    part(mm, 'ranger_body').sex = 'female'
+    mm.parts.push({ ...part(mm, 'ranger_body'), id: 'ranger_body_m', sex: 'male' })
+    const s = applyPreset(createEmptyState(mm, male.id), mm.presets[0], mm)
+    expect(s.equipped.body).toEqual(['ranger_body_m'])
+    expect(s.equipped.arms).toEqual(['ranger_arms'])
   })
 })
 

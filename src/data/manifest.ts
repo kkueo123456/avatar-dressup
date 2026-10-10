@@ -11,7 +11,6 @@ export class ManifestError extends Error {
 type Rec = Record<string, unknown>
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v)
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0
-const isStrArr = (v: unknown): v is string[] => Array.isArray(v) && v.every(isStr)
 const isBool = (v: unknown): v is boolean => typeof v === 'boolean'
 
 export function validateManifest(raw: unknown): Manifest {
@@ -49,8 +48,6 @@ export function validateManifest(raw: unknown): Manifest {
     if (b.sex !== 'male' && b.sex !== 'female') push(`底模 ${b.id} 的 sex 必须是 male 或 female`)
     if (!isStr(b.label)) push(`底模 ${b.id} 缺少 label`)
     if (!isStr(b.url)) push(`底模 ${b.id} 缺少 url`)
-    if (!isStrArr(b.bodyMeshes)) push(`底模 ${b.id} 的 bodyMeshes 必须是字符串数组`)
-    if (!isStrArr(b.headMeshes)) push(`底模 ${b.id} 的 headMeshes 必须是字符串数组`)
   }
 
   const slotIds = new Set<string>()

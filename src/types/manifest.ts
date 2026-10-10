@@ -16,10 +16,6 @@ export interface BaseModel {
   sex: Exclude<Sex, 'any'>
   label: string
   url: string
-  /** 会被服装隐藏的网格名 */
-  bodyMeshes: string[]
-  /** 永远可见的网格名 */
-  headMeshes: string[]
 }
 
 export interface Slot {

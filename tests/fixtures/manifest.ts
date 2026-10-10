@@ -23,8 +23,8 @@ export function makeManifest(): Manifest {
     version: 1,
     skeleton: { rootBone: 'root', expectedBones: 65 },
     bases: [
-      { id: 'female_regular', sex: 'female', label: '女性', url: 'models/base/Female.glb', bodyMeshes: ['Body'], headMeshes: ['Head'] },
-      { id: 'male_regular', sex: 'male', label: '男性', url: 'models/base/Male.glb', bodyMeshes: ['Body'], headMeshes: ['Head'] },
+      { id: 'female_regular', sex: 'female', label: '女性', url: 'models/base/Female.glb' },
+      { id: 'male_regular', sex: 'male', label: '男性', url: 'models/base/Male.glb' },
     ],
     slots: [
       { id: 'hair', label: '发型', group: 'head', multiple: false, outfit: false },

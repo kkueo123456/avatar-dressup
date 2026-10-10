@@ -1,14 +1,11 @@
-import { nextTick, watch } from 'vue'
-import type { AnimationRef, BaseModel, Manifest, Part, Variant } from '@/types/manifest'
-import { computeBodyVisible, type AvatarState } from '@/avatar/slotRules'
-import type { AvatarStore } from './useAvatarState'
+import type { AnimationRef, BaseModel, Manifest, Part } from '@/types/manifest'
+import type { AvatarState } from '@/avatar/slotRules'
+import type { AvatarStore } from './avatarStore'
 
 export interface ViewerLike {
   setBase(base: BaseModel): Promise<void>
   equip(part: Part): Promise<void>
   unequip(partId: string): void
-  setBodyVisible(visible: boolean): void
-  setVariant(part: Part, variant: Variant | null): Promise<void>
   playAnimation(anim: AnimationRef): Promise<void>
 }
 
@@ -30,6 +27,10 @@ export interface ViewerSync {
   idle(): Promise<void>
 }
 
+/**
+ * 监听 store 里 avatar 的变化，把差分推给 viewer。
+ * 所有动作串进一个队列；某件部件装备失败时从 store 里卸掉它，保持界面与 3D 一致。
+ */
 export function createViewerSync(
   store: AvatarStore,
   viewer: ViewerLike,
@@ -40,12 +41,7 @@ export function createViewerSync(
   const idleAnim: AnimationRef | undefined = manifest.animations[0]
   const partOf = (id: string) => manifest.parts.find((p) => p.id === id)
 
-  async function applyVariant(part: Part, variantId: string | undefined): Promise<void> {
-    const variant = variantId ? (part.variants.find((v) => v.id === variantId) ?? null) : null
-    await viewer.setVariant(part, variant).catch((e: unknown) => onError(part.id, e))
-  }
-
-  async function equipAll(ids: string[], state: AvatarState): Promise<void> {
+  async function equipAll(ids: string[]): Promise<void> {
     for (const id of ids) {
       const part = partOf(id)
       if (!part) continue
@@ -53,10 +49,8 @@ export function createViewerSync(
         await viewer.equip(part)
       } catch (e) {
         onError(id, e)
-        store.unequip(part.slot, id)
-        continue
+        store.getState().unequip(part.slot, id)
       }
-      if (state.variants[id]) await applyVariant(part, state.variants[id])
     }
   }
 
@@ -71,49 +65,34 @@ export function createViewerSync(
         return
       }
       if (idleAnim) await viewer.playAnimation(idleAnim).catch((e: unknown) => onError(idleAnim.id, e))
-      await equipAll(Object.values(next.equipped).flat(), next)
-    } else {
-      const { added, removed } = diffEquipped(prev.equipped, next.equipped)
-      for (const id of removed) viewer.unequip(id)
-      await equipAll(added, next)
-      for (const [id, variantId] of Object.entries(next.variants)) {
-        if (added.includes(id) || prev.variants[id] === variantId) continue
-        const part = partOf(id)
-        if (part) await applyVariant(part, variantId)
-      }
-      for (const id of Object.keys(prev.variants)) {
-        if (id in next.variants || removed.includes(id)) continue
-        const part = partOf(id)
-        if (part) await applyVariant(part, undefined)
-      }
+      await equipAll(Object.values(next.equipped).flat())
+      return
     }
-    viewer.setBodyVisible(computeBodyVisible(next, manifest.slots))
+    const { added, removed } = diffEquipped(prev.equipped, next.equipped)
+    for (const id of removed) viewer.unequip(id)
+    await equipAll(added)
   }
 
-  async function apply(next: AvatarState, prev: AvatarState | undefined): Promise<void> {
-    try {
-      await applyInner(next, prev)
-    } catch (e) {
-      onError('sync', e)
-    }
+  function enqueue(next: AvatarState, prev: AvatarState | undefined): void {
+    queue = queue
+      .then(() => applyInner(next, prev))
+      .catch((e: unknown) => onError('sync', e))
   }
 
-  const stop = watch(
-    () => store.state.avatar,
-    (next, prev) => {
-      queue = queue.then(() => apply(next, prev)).catch(() => undefined)
-    },
-    { immediate: true },
-  )
+  enqueue(store.getState().avatar, undefined)
+  const unsubscribe = store.subscribe((s, prevState) => {
+    if (s.avatar === prevState.avatar) return
+    enqueue(s.avatar, prevState.avatar)
+  })
 
   async function idle(): Promise<void> {
     let last: Promise<void>
     do {
-      await nextTick()
+      await new Promise<void>((r) => setTimeout(r, 0))
       last = queue
       await last
     } while (last !== queue)
   }
 
-  return { stop, idle }
+  return { stop: unsubscribe, idle }
 }
