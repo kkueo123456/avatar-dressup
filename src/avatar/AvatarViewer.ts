@@ -74,7 +74,7 @@ export class AvatarViewer {
     container.appendChild(this.renderer.domElement)
 
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.05, 100)
-    this.camera.position.set(0, 1.4, 3.2)
+    this.camera.position.set(0, 2.0, 3.0)
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enablePan = false
     this.controls.enableDamping = true
@@ -221,8 +221,13 @@ export class AvatarViewer {
       this.startFocus(look, look.clone().add(new THREE.Vector3(0, 0, 1.3)))
       return
     }
+    // 全身机位：相机抬到目标上方约 18 度轻微俯视，比正平视更有体积感
     const dist = Math.max(size.y * 1.6, 2.2)
-    this.startFocus(center, new THREE.Vector3(center.x, center.y + size.y * 0.05, center.z + dist))
+    const elevation = THREE.MathUtils.degToRad(18)
+    this.startFocus(
+      center,
+      new THREE.Vector3(center.x, center.y + dist * Math.sin(elevation), center.z + dist * Math.cos(elevation)),
+    )
   }
 
   private startFocus(target: THREE.Vector3, camPos: THREE.Vector3): void {
