@@ -184,8 +184,8 @@ interface AvatarStore {
 
 ### 6.5 组件层
 
-- `DressUp`：客户端组件。挂载时 `loadManifest()`，成功后建 store、viewer、viewerSync、ThumbnailRenderer；manifest 失败或 WebGL 不可用时整页显示错误与原因。卸载时 `sync.stop()`、`viewer.dispose()`、`thumbs.dispose()`。
-- `Viewport`：容器 div 交给 `AvatarViewer`。底部芯片：底模下拉（切换后用 `setBase` 返回值弹一条「已卸下 N 件不匹配部件」提示）、全身或头部分段、动画名只显示。右下截图按钮下载当前视图。
+- `DressUp`：客户端组件，也是唯一的装配点。挂载时 `loadManifest()`，成功后建 store、AvatarViewer、viewerSync、ThumbnailRenderer，并通过 `DressUpContext` 下发给子组件；manifest 失败或 WebGL 不可用时整页显示错误与原因。卸载时 `sync.stop()`、`thumbs.dispose()`、`viewer.dispose()`。
+- `Viewport`：只提供 canvas 容器与交互（不建 `AvatarViewer`，容器 ref 由 `DressUp` 传入）。底部芯片：底模下拉（切换后用 `setBase` 返回值弹一条「已卸下 N 件不匹配部件」提示，并把分段控件同步回「全身」）、全身或头部分段、动画名只显示。右下截图按钮下载当前视图。底模加载失败时在视口内显示遮罩。
 - `PartsPanel`：顶部两张套装卡（来自 manifest.presets），当前套装高亮；部位 tab 顺序与 `slots` 一致，没有部件的槽位不显示；网格三列，单选槽位第一格固定「无」；底部摘要「已装 N 件 · 套装名 · 底模名」加重置。
 - `PartCard`：缩略图未就绪显示名称；加载中显示转圈；失败置灰并带 title 提示。
 - `TopBar`：字标链接回首页、「生成海报」主按钮。B 之前不显示「我的形象」与账号。
@@ -241,7 +241,7 @@ export interface PosterProvider {
 ## 7. 部署
 
 - `next.config.ts`：`output: 'standalone'`。
-- Dockerfile 按云开发官方三阶段：deps、builder、runner，基础镜像 node:20-alpine，runner 设 `NODE_ENV=production`、`HOSTNAME=0.0.0.0`、`PORT=3000`，COPY `public`、`.next/standalone`、`.next/static`，非 root 用户运行，`CMD ["node","server.js"]`。
+- Dockerfile 按云开发官方三阶段：deps、builder、runner，基础镜像 node:22-alpine，runner 设 `NODE_ENV=production`、`HOSTNAME=0.0.0.0`、`PORT=3000`，COPY `public`、`.next/standalone`、`.next/static`，非 root 用户运行，`CMD ["node","server.js"]`。
 - `.npmrc` 指向国内镜像，云端构建拉 sharp 预编译包时用。
 - 部署命令：`tcb login` 后 `tcb cloudrun deploy --port 3000`。
 - 服务规格：0.25 核 0.5 GB，高可用模式最小副本 1，不缩容到零。内存不够时升 0.5 核 1 GB，每月约多 3 元。
@@ -253,8 +253,9 @@ export interface PosterProvider {
 
 | 场景 | 表现 |
 |---|---|
-| manifest 校验失败、底模加载失败 | 整页错误，显示原因 |
+| manifest 校验失败 | 整页错误，显示原因 |
 | WebGL 不可用 | 整页提示 |
+| 底模加载失败 | 视口内遮罩显示原因，换到别的底模成功后遮罩消失；「生成海报」在底模加载完成前保持禁用 |
 | 部件加载或绑定失败 | 该卡置灰带提示，状态回滚，其余不受影响 |
 | 海报请求 400/500 或网络失败 | 弹窗内显示原因，可重试 |
 | 适配器未配置 | 500，前端显示「海报服务未配置」 |

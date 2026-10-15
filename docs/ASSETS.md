@@ -30,9 +30,9 @@ Expand-Archive -LiteralPath "Modular Character Outfits - Fantasy[Standard].zip" 
 Expand-Archive -LiteralPath "Universal Animation Library[Standard].zip" -DestinationPath assets-src/anim -Force
 ```
 
-`assets-src/` 不进 git。脚本只读这些子目录：底模的 `Base Characters`、发型眉毛的 `Rigged to Head Bone`、服装的 `Modular Parts`、动画里不带 `_RM` 的文件。`Origin at 0` 的静态发型、`Outfits` 整套文件、FBX 目录都会被忽略。
+`assets-src/` 不进 git，仓库根目录的三个素材 zip 与 pdf 也在 `.gitignore` 里（`/*.zip`、`/*.pdf`）。脚本只读这些子目录：底模的 `Base Characters`、发型眉毛的 `Rigged to Head Bone`、服装的 `Modular Parts`、动画里不带 `_RM` 的文件。`Origin at 0` 的静态发型、`Outfits` 整套文件、FBX 目录都会被忽略。
 
-素材包里有两个 `.gltf` 引用的贴图名比磁盘上的多一个 `_png` 后缀，脚本读取前会自动从正确命名复制一份补上，输出里会打印「修复:」。
+素材包里有两个 `.gltf` 引用的贴图名比磁盘上的多一个 `_png` 后缀，脚本读取时会在内存里把这类 uri 改指到实际存在的那个文件名，不再往 `assets-src/` 复制副本（脚本可以反复重跑，目录不会被改写），输出里会打印「修复:」。两种命名都不存在时报错并列缺失的资源名。
 
 ## 3. 生成
 

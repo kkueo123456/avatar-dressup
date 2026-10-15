@@ -10,7 +10,10 @@ import subsetFont from 'subset-font'
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const OUT = path.join(ROOT, 'app', 'fonts')
 // 走 jsDelivr 的 GitHub 镜像：raw.githubusercontent.com 在这台机器上经常断连
-const GITHUB_FONTS = 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl'
+// 固定 commit，别用 @main，否则任何一次上游提交都会让同一份源码产出不同字体。
+// 取新 commit：curl -H 'user-agent: x' https://api.github.com/repos/google/fonts/commits/main
+const FONT_COMMIT = '66928797f271fed5ee428544e7229685e2d90127'
+const GITHUB_FONTS = `https://cdn.jsdelivr.net/gh/google/fonts@${FONT_COMMIT}/ofl`
 
 function ascii() {
   let s = ''

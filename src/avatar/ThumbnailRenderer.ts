@@ -10,6 +10,7 @@ export class ThumbnailRenderer {
   private readonly camera = new THREE.PerspectiveCamera(35, 1, 0.01, 50)
   private readonly memory = new Map<string, Promise<string>>()
   private queue: Promise<unknown> = Promise.resolve()
+  private disposed = false
 
   constructor(
     private readonly source: GltfSource,
@@ -23,6 +24,8 @@ export class ThumbnailRenderer {
   }
 
   get(part: Part): Promise<string> {
+    // 已释放就别再排队了；调用方（PartCard）会 catch 掉
+    if (this.disposed) return Promise.reject(new Error('缩略图渲染器已释放'))
     const hit = this.memory.get(part.id)
     if (hit) return hit
     const run = () => this.render(part)
@@ -37,6 +40,8 @@ export class ThumbnailRenderer {
   }
 
   private async render(part: Part): Promise<string> {
+    // dispose 之后队列里还在等的那几个任务在这里短路，不会再建一个 WebGL 上下文出来
+    if (this.disposed) throw new Error('缩略图渲染器已释放')
     if (!this.renderer) {
       this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
       this.renderer.setPixelRatio(1)
@@ -65,6 +70,7 @@ export class ThumbnailRenderer {
   }
 
   dispose(): void {
+    this.disposed = true
     this.renderer?.dispose()
     this.renderer = null
     this.memory.clear()

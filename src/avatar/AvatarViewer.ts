@@ -49,6 +49,8 @@ export class AvatarViewer {
   private readonly background: THREE.Color
   private readonly disposables: Array<{ dispose(): void }> = []
 
+  /** 卸载后置位：在途加载回来时不再推相机、不再回调 */
+  private disposed = false
   private focusT = 1
   private readonly targetFrom = new THREE.Vector3()
   private readonly targetTo = new THREE.Vector3()
@@ -246,9 +248,11 @@ export class AvatarViewer {
   }
 
   async setBase(base: BaseModel): Promise<void> {
+    if (this.disposed) return
     this.listeners.loading?.('start', base.id)
     try {
       await this.rig.setBase(base)
+      if (this.disposed) return
       this.focus('body')
     } catch (e) {
       this.listeners.error?.(base.id, reasonOf(e))
@@ -259,6 +263,7 @@ export class AvatarViewer {
   }
 
   async equip(part: Part): Promise<void> {
+    if (this.disposed) return
     this.listeners.loading?.('start', part.id)
     try {
       await this.rig.equip(part)
@@ -275,6 +280,7 @@ export class AvatarViewer {
   }
 
   async playAnimation(anim: AnimationRef): Promise<void> {
+    if (this.disposed) return
     try {
       await this.rig.playAnimation(anim)
     } catch (e) {
@@ -306,6 +312,10 @@ export class AvatarViewer {
   }
 
   dispose(): void {
+    this.disposed = true
+    // 摘掉监听：卸载后 rig 里在途的加载还会回来，不该再写已卸载组件的状态
+    this.listeners.loading = undefined
+    this.listeners.error = undefined
     cancelAnimationFrame(this.raf)
     this.resizeObserver.disconnect()
     this.controls.dispose()

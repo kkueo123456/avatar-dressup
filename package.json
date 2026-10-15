@@ -13,11 +13,16 @@
     "assets:scan": "node scripts/build-manifest.mjs --scan",
     "assets:build": "node scripts/build-manifest.mjs",
     "fonts:build": "node scripts/build-fonts.mjs",
-    "landing:webp": "node scripts/landing-webp.mjs"
+    "landing:webp": "node scripts/landing-webp.mjs",
+    "worker": "tsx src/worker/posterWorker.ts"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "@types/three": "^0.186.0",
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.12",
     "next": "^16.4.0",
+    "prisma": "^5.22.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "sharp": "^0.35.5",
@@ -28,11 +33,13 @@
     "@gltf-transform/core": "^4.5.1",
     "@gltf-transform/extensions": "^4.5.1",
     "@gltf-transform/functions": "^4.5.1",
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "fast-glob": "^3.3.3",
     "subset-font": "^2.9.0",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^5.0.3"
   }

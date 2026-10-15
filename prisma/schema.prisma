@@ -1,0 +1,59 @@
+// 本地用 SQLite（文件），上线改 mysql:// 即可，代码不动
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  avatars Avatar[]
+
+  @@map("users")
+}
+
+model Avatar {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  name            String
+  baseId          String   @map("base_id")
+  parts           String   // JSON: Record<string, string[]>
+  coverUrl        String?  @map("cover_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Web3 预留字段
+  tokenId         String?  @map("token_id")
+  mintStatus      String   @default("UNMINTED") @map("mint_status") // UNMINTED | MINTING | MINTED
+  chainId         Int?     @map("chain_id")
+  contractAddress String?  @map("contract_address")
+  ownerWallet     String?  @map("owner_wallet")
+  metadataUri     String?  @map("metadata_uri")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("avatars")
+}
+
+model PosterJob {
+  id               String   @id @default(uuid())
+  style            String
+  status           String   @default("pending") // pending, running, done, failed
+  inputImageUrl    String   @map("input_image_url")
+  resultImageUrl   String?  @map("result_image_url")
+  errorMessage     String?  @map("error_message")
+  createdAt        DateTime @default(now()) @map("created_at")
+  startedAt        DateTime? @map("started_at")
+  finishedAt       DateTime? @map("finished_at")
+
+  @@index([status, createdAt])
+  @@map("poster_jobs")
+}

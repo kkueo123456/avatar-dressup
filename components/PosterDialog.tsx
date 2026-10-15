@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { POSTER_STYLES, POSTER_STYLE_LABELS, type PosterStyle } from '@/poster/types'
 import styles from './poster.module.css'
 
@@ -10,6 +10,23 @@ type State =
   | { kind: 'error'; message: string }
 
 const STYLE_KEY = 'avatar-dressup:poster-style'
+const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
+/** 可被 AbortSignal 中断的 sleep */
+function delay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms)
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    if (signal.aborted) {
+      onAbort()
+      return
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
 
 interface Props {
   open: boolean
@@ -21,6 +38,15 @@ interface Props {
 export default function PosterDialog({ open, onClose, screenshot }: Props) {
   const [style, setStyle] = useState<PosterStyle>('fantasy')
   const [state, setState] = useState<State>({ kind: 'pick' })
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+  /** 在途请求；关闭弹窗或又点一次生成时先中止它 */
+  const abortRef = useRef<AbortController | null>(null)
+  /** 请求序号；中止可能晚于响应，序号能保证只有最新一轮写状态 */
+  const runRef = useRef(0)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   // 记住上次选的风格；localStorage 不可用时忽略
   useEffect(() => {
@@ -32,9 +58,20 @@ export default function PosterDialog({ open, onClose, screenshot }: Props) {
     }
   }, [])
 
+  // 关闭时中止在途请求并回到选风格态；关掉后回来的响应不许再写状态
   useEffect(() => {
-    if (!open) setState({ kind: 'pick' })
+    if (open) return
+    abortRef.current?.abort()
+    abortRef.current = null
+    runRef.current += 1
+    setState({ kind: 'pick' })
   }, [open])
+
+  // 卸载时同样中止，避免请求回来时往已卸载的组件写状态、留下悬挂的 blob URL
+  useEffect(() => () => {
+    abortRef.current?.abort()
+    runRef.current += 1
+  }, [])
 
   // 离开 done 态或卸载时释放 blob URL
   useEffect(() => {
@@ -42,6 +79,50 @@ export default function PosterDialog({ open, onClose, screenshot }: Props) {
       if (state.kind === 'done') URL.revokeObjectURL(state.url)
     }
   }, [state])
+
+  // 打开时焦点进入弹窗、Esc 关闭、Tab 在弹窗内循环；关闭后焦点还给触发按钮
+  useEffect(() => {
+    if (!open) return
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const focusables = () =>
+      Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter(
+        (el) => !el.hasAttribute('disabled') && el.getClientRects().length > 0,
+      )
+    ;(focusables()[0] ?? dialogRef.current)?.focus()
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onCloseRef.current()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const items = focusables()
+      if (!items.length) {
+        // 生成中弹窗里没有可聚焦元素，就把焦点留在弹窗容器上，别让它跑到后面的面板
+        e.preventDefault()
+        dialogRef.current?.focus()
+        return
+      }
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      const inside = active instanceof Node && !!dialogRef.current?.contains(active)
+      if (e.shiftKey && (!inside || active === first)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && (!inside || active === last)) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      if (previous?.isConnected) previous.focus()
+    }
+  }, [open])
 
   function pick(s: PosterStyle) {
     setStyle(s)
@@ -53,6 +134,12 @@ export default function PosterDialog({ open, onClose, screenshot }: Props) {
   }
 
   async function generate() {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const run = ++runRef.current
+    const alive = () => run === runRef.current && !controller.signal.aborted
+
     setState({ kind: 'busy' })
     try {
       const image = screenshot()
@@ -60,6 +147,7 @@ export default function PosterDialog({ open, onClose, screenshot }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image, style }),
+        signal: controller.signal,
       })
       if (!res.ok) {
         let message = `请求失败（HTTP ${res.status}）`
@@ -67,14 +155,42 @@ export default function PosterDialog({ open, onClose, screenshot }: Props) {
           const data = (await res.json()) as { error?: string }
           if (data.error) message = data.error
         } catch {
-          // 响应不是 JSON，保留默认文案
+          // 保留默认文案
         }
-        setState({ kind: 'error', message })
+        if (alive()) setState({ kind: 'error', message })
         return
       }
-      const blob = await res.blob()
-      setState({ kind: 'done', url: URL.createObjectURL(blob), style })
+      const { jobId } = (await res.json()) as { jobId: string }
+
+      // 轮询：每 2 秒查一次状态，直到 done / failed / 被中止
+      while (alive()) {
+        try {
+          await delay(2000, controller.signal)
+        } catch {
+          return // 被中止
+        }
+        if (!alive()) return
+
+        const r = await fetch(`/api/poster/${jobId}`, { signal: controller.signal })
+        if (!r.ok) continue
+        const data = (await r.json()) as {
+          status: string
+          resultImageUrl?: string
+          errorMessage?: string
+        }
+
+        if (data.status === 'done') {
+          if (alive()) setState({ kind: 'done', url: data.resultImageUrl!, style })
+          return
+        }
+        if (data.status === 'failed') {
+          if (alive()) setState({ kind: 'error', message: data.errorMessage || '生成失败' })
+          return
+        }
+        // pending / running：继续下一轮
+      }
     } catch (e) {
+      if (!alive()) return
       setState({ kind: 'error', message: e instanceof Error ? e.message : String(e) })
     }
   }
@@ -84,7 +200,7 @@ export default function PosterDialog({ open, onClose, screenshot }: Props) {
 
   return (
     <div className={styles.backdrop} role="dialog" aria-modal="true" aria-labelledby="poster-title">
-      <div className={styles.dialog}>
+      <div ref={dialogRef} className={styles.dialog} tabIndex={-1}>
         <div className={styles.head}>
           <h2 id="poster-title" className={`font-display ${styles.title}`}>生成海报</h2>
           <button type="button" className={styles.close} aria-label="关闭" onClick={onClose}>×</button>
@@ -117,7 +233,7 @@ export default function PosterDialog({ open, onClose, screenshot }: Props) {
         {state.kind === 'busy' && (
           <div className={styles.busy} aria-live="polite">
             <div className={styles.skeleton} />
-            <p>正在渲染，约 20 秒…</p>
+            <p>正在生成海报，请稍候…</p>
           </div>
         )}
 

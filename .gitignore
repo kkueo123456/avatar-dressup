@@ -9,3 +9,9 @@ assets-src/
 .DS_Store
 .claude/launch.json
 public/landing/src/
+.env
+.temp_poster.log
+
+# 仓库根目录的素材包与临时文档，只排根目录
+/*.zip
+/*.pdf

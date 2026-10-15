@@ -52,8 +52,9 @@ button { font-family: inherit; }
   height: 40px; padding: 0 20px; border-radius: var(--radius-pill);
   font-size: 14px; cursor: pointer; white-space: nowrap;
 }
-.btn-primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 700; }
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 700; transition: transform 80ms ease, box-shadow 150ms ease, background-color 150ms ease; }
+.btn-primary:hover { background: var(--accent-hover); box-shadow: 0 0 0 3px rgba(232, 164, 69, 0.22); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 .btn-ghost { border: 1px solid var(--line); background: #17161E; color: var(--text); }
 .btn-ghost:hover { border-color: var(--line-hover); background: var(--card-raised); }

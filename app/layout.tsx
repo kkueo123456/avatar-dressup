@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import type { ReactNode } from 'react'
 import './globals.css'
+import ClientProviders from '../components/ClientProviders'
 
 const orbitron = localFont({
   src: './fonts/orbitron-subset.woff2',
@@ -25,7 +26,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="zh-CN" className={`${orbitron.variable} ${huangyou.variable}`}>
-      <body>{children}</body>
+      <body>
+        <ClientProviders>{children}</ClientProviders>
+      </body>
     </html>
   )
 }

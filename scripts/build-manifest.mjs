@@ -2,7 +2,7 @@
 // 扫描 assets-src/，归类、优化、复制为单文件 glb，生成 public/avatar/manifest.json。
 // 用法: node scripts/build-manifest.mjs [--scan]   --scan 只列出识别结果，不写文件。
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fg from 'fast-glob'
@@ -11,6 +11,7 @@ import { NodeIO } from '@gltf-transform/core'
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
 import { dedup, prune, resample, textureCompress } from '@gltf-transform/functions'
 import { buildPresets, chooseAnimation, classifyFiles } from './lib/classify.mjs'
+import { resolveGltfUris } from './lib/gltf-resources.mjs'
 import { nameLabels, pieceLabels, rules, setLabels, skeleton, slotLabels, slots } from './manifest.config.mjs'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -24,30 +25,29 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
 
 /**
  * 素材包里个别 .gltf 引用的贴图名和磁盘上的文件名差一个 "_png" 后缀（例如引用 T_Eye_Normal_png.png，
- * 实际是 T_Eye_Normal.png）。读取前把缺失的文件从对应的另一种命名复制一份，只动 assets-src，不进 git。
+ * 实际是 T_Eye_Normal.png）。这类 uri 只在内存里改指到实际存在的文件，组成 resources 交给
+ * io.readJSON；不往 assets-src 里复制副本，脚本可以反复重跑。
  * @param {string} abs
  */
-async function repairResourceNames(abs) {
-  if (!/\.gltf$/i.test(abs)) return
+async function readDoc(abs) {
+  if (!/\.gltf$/i.test(abs)) return io.read(abs)
   const dir = path.dirname(abs)
   const json = JSON.parse(await readFile(abs, 'utf8'))
-  const uris = [...(json.images ?? []), ...(json.buffers ?? [])].map((x) => x.uri).filter((u) => u && !u.startsWith('data:'))
-  for (const uri of uris) {
-    const want = path.join(dir, decodeURIComponent(uri))
-    if (existsSync(want)) continue
-    const alt = /_png\.png$/i.test(uri) ? uri.replace(/_png\.png$/i, '.png') : uri.replace(/\.png$/i, '_png.png')
-    const altAbs = path.join(dir, decodeURIComponent(alt))
-    if (alt !== uri && existsSync(altAbs)) {
-      await copyFile(altAbs, want)
-      console.warn(`修复: ${path.basename(abs)} 引用 ${uri}，已从 ${alt} 复制`)
-    }
+  const { entries, repairs } = resolveGltfUris(json, (rel) => existsSync(path.join(dir, rel)))
+  const missing = entries.filter((e) => !e.actualUri).map((e) => e.uri)
+  if (missing.length) throw new Error(`${path.basename(abs)} 引用的资源不存在：${missing.join('、')}`)
+  // resources 的 key 必须是 JSON 里原样的 uri（readJSON 按字符串精确查找）
+  const resources = {}
+  for (const { uri, actualUri } of entries) {
+    resources[uri] = await readFile(path.join(dir, decodeURIComponent(actualUri)))
   }
+  for (const r of repairs) console.warn(`修复: ${path.basename(abs)} 引用 ${r.uri}，改用 ${r.from}`)
+  return io.readJSON({ json, resources })
 }
 
 /** @param {string} abs */
 async function inspect(abs) {
-  await repairResourceNames(abs)
-  const doc = await io.read(abs)
+  const doc = await readDoc(abs)
   const root = doc.getRoot()
   const meshNames = root.listNodes().filter((n) => n.getMesh()).map((n) => n.getName() || n.getMesh().getName())
   const joints = root.listSkins().reduce((m, s) => Math.max(m, s.listJoints().length), 0)

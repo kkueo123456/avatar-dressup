@@ -26,8 +26,9 @@ function reasonOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
-export default function DressUp() {
+export default function DressUp({ avatarId }: { avatarId?: string }) {
   const [phase, setPhase] = useState<Phase>({ status: 'loading' })
+  const [restoreError, setRestoreError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [viewer, setViewer] = useState<AvatarViewer | null>(null)
   const [thumbs, setThumbs] = useState<ThumbnailRenderer | null>(null)
@@ -35,12 +36,32 @@ export default function DressUp() {
   const [errors, setErrors] = useState<ReadonlyMap<string, string>>(() => new Map())
   const [posterOpen, setPosterOpen] = useState(false)
 
-  // 读 manifest，校验失败整页报错
+  // 读 manifest，校验失败整页报错；如有 avatarId 同时加载历史形象
   useEffect(() => {
     let cancelled = false
     loadManifest()
-      .then((manifest) => {
-        if (!cancelled) setPhase({ status: 'ready', manifest, store: createAvatarStore(manifest) })
+      .then(async (manifest) => {
+        if (cancelled) return
+        const store = createAvatarStore(manifest)
+
+        if (avatarId) {
+          try {
+            const res = await fetch(`/api/avatar/${avatarId}`, { credentials: 'include' })
+            if (!res.ok) {
+              const data = (await res.json()) as { error?: string }
+              throw new Error(data.error || '加载形象失败')
+            }
+            const data = (await res.json()) as { baseId: string; parts: Record<string, string[]> }
+            store.getState().replace({
+              baseId: data.baseId,
+              equipped: data.parts,
+            })
+          } catch (e) {
+            if (!cancelled) setRestoreError(reasonOf(e))
+          }
+        }
+
+        if (!cancelled) setPhase({ status: 'ready', manifest, store })
       })
       .catch((e: unknown) => {
         if (!cancelled) setPhase({ status: 'error', message: reasonOf(e) })
@@ -48,7 +69,7 @@ export default function DressUp() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [avatarId])
 
   // manifest 就绪且容器挂上后建 3D；严格模式会执行两遍，清理函数必须把一切释放干净
   useEffect(() => {
@@ -102,10 +123,21 @@ export default function DressUp() {
     )
   }
 
+  // 底模还在加载时截出来的是空场景，先别让「生成海报」可点；部件加载不影响（顶多少一件衣服）
+  const baseLoading = phase.manifest.bases.some((b) => loadingIds.has(b.id))
+
   return (
     <DressUpContext.Provider value={{ manifest: phase.manifest, store: phase.store, viewer, thumbs, loadingIds, errors }}>
       <div className={styles.layout}>
-        <TopBar onPoster={viewer ? () => setPosterOpen(true) : undefined} />
+        <TopBar onPoster={viewer && !baseLoading ? () => setPosterOpen(true) : undefined} />
+        {restoreError && (
+          <div className={styles.restoreWarn} role="alert">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+            </svg>
+            形象恢复失败：{restoreError}
+          </div>
+        )}
         <div className={styles.main}>
           <Viewport containerRef={containerRef} />
           <PartsPanel />
