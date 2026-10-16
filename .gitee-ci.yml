@@ -9,7 +9,7 @@ build:
     - export N_PREFIX=$HOME/.n
     - export PATH=$N_PREFIX/bin:$PATH
     - npm install -g n --registry=https://registry.npmmirror.com
-    - n 20
+    - n --mirror https://npmmirror.com/mirrors/node 20
     - hash -r || true
     - node -v
     - npm -v
