@@ -7,9 +7,9 @@ const ICON = {
 }
 
 const FEATURES = [
-  { icon: ICON.shirt, ai: false, title: '实时换装', text: '七个部位，两套完整服装，两个底模。装上一件自动补齐整套，之后随意混搭。所有部件共用一副骨骼，怎么换都不会错位。' },
-  { icon: ICON.camera, ai: false, title: '动画与视角', text: '角色一直在待机动画里呼吸，衣服跟着动。镜头可以聚焦头部看发型，也可以拉远看全身，随时一键截图。' },
-  { icon: ICON.sparkles, ai: true, title: 'AI 海报', text: '奇幻插画、动漫、水彩、赛博朋克四种风格。把当前形象交给 AI，几十秒后得到一张海报，直接下载。' },
+  { icon: ICON.shirt, ai: false, title: '自由搭配', text: '从头到脚随心换。套装一键穿，单品慢慢挑，发型、眉毛、配饰都能调，怎么搭都不会穿模。' },
+  { icon: ICON.camera, ai: false, title: '实时预览', text: '角色会自然地呼吸和摆动，衣服跟着身体一起动。拉近看细节，拉远看整体，随时截一张满意的图。' },
+  { icon: ICON.sparkles, ai: true, title: '风格海报', text: '奇幻、动漫、水彩、赛博朋克四种风格。截个图换种画风，几秒钟出一张能下载的海报。' },
 ]
 
 export default function Features() {
@@ -17,8 +17,8 @@ export default function Features() {
     <section className={styles.section} aria-label="能力">
       <div className={`${styles.container} ${styles.sectionInner}`}>
         <div className={styles.sectionHead}>
-          <span className={`font-mark ${styles.eyebrow}`}>WHAT YOU GET</span>
-          <h2 className={`font-display ${styles.h2}`}>三件事，一个页面做完</h2>
+          <span className={`font-mark ${styles.eyebrow}`}>能做什么</span>
+          <h2 className={`font-display ${styles.h2}`}>三件小事，一个页面搞定</h2>
         </div>
         <div className={styles.cards}>
           {FEATURES.map((f) => (
