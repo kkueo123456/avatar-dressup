@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useStore } from 'zustand'
+import { message } from 'antd'
 import { selectBase } from '@/state/avatarStore'
 import type { BaseModel } from '@/types/manifest'
 import { useDressUp } from './DressUpContext'
@@ -87,13 +88,6 @@ export default function Viewport({ containerRef }: { containerRef: RefObject<HTM
   const { manifest, store, viewer, loadingIds, errors } = useDressUp()
   const base = useStore(store, (s) => selectBase(manifest, s))
   const [focus, setFocus] = useState<Focus>('body')
-  const [toast, setToast] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 4000)
-    return () => clearTimeout(t)
-  }, [toast])
 
   // 只看当前底模的错误；换到别的底模成功后遮罩就该消失
   const baseError = errors.get(base.id)
@@ -106,7 +100,7 @@ export default function Viewport({ containerRef }: { containerRef: RefObject<HTM
     const removed = store.getState().setBase(next)
     // 换底模后 view 里会自动回全身机位，分段控件要跟着回到「全身」，别停在「头部」
     setFocus('body')
-    if (removed.length) setToast(`已卸下 ${removed.length} 件不匹配的部件：${removed.map((p) => p.label).join('、')}`)
+    if (removed.length) message.info(`已卸下 ${removed.length} 件不匹配的部件：${removed.map((p) => p.label).join('、')}`)
   }
 
   function changeFocus(f: Focus) {
@@ -130,7 +124,6 @@ export default function Viewport({ containerRef }: { containerRef: RefObject<HTM
         <span className={`${styles.dot} ${busy ? styles.dotBusy : ''}`} />
         {busy ? '加载中' : '实时 3D'} · 拖动旋转 · 滚轮缩放
       </div>
-      {toast && <div className={styles.toast} role="status">{toast}</div>}
       {/* 加载中遮住画布，避免出现 t-pose 一瞬；底模/动画/部件任一在加载都遮 */}
       {!baseError && busy && (
         <div className={`${styles.overlay} ${styles.overlayLoading}`} role="status" aria-live="polite">

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { message } from 'antd'
 import styles from './avatarCard.module.css'
 
 interface AvatarCardProps {
@@ -40,7 +41,7 @@ export default function AvatarCard({ avatar }: AvatarCardProps) {
         setDeleted(true)
       } else {
         const data = (await res.json()) as { error?: string }
-        alert(data.error || '删除失败')
+        message.error(data.error || '删除失败')
       }
     } finally {
       setIsDeleting(false)
