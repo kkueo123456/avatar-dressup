@@ -5,8 +5,9 @@ stages:
 # 构建阶段：在 Gitee 服务器上编译，利用更强的性能
 build:
   stage: build
-  image: node:20
+  image: node:20-alpine
   script:
+    - node -v && npm -v
     - npm ci --registry=https://registry.npmmirror.com
     - npx prisma generate
     - npm run build
