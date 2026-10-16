@@ -14,7 +14,7 @@ export default function Steps() {
         <div className={`${styles.container} ${styles.sectionInner}`}>
           <div className={styles.sectionHead}>
             <span className={`font-mark ${styles.eyebrow}`}>使用步骤</span>
-            <h2 className={`font-display ${styles.h2}`}>三步，从捏人到出图</h2>
+            <h2 className={`font-display ${styles.h2}`}>三步，从形象到海报</h2>
           </div>
           <ol className={styles.steps}>
             {STEPS.map((s) => (
@@ -33,7 +33,7 @@ export default function Steps() {
             <h2 className={`font-display ${styles.ctaBandTitle}`}>现在就试试</h2>
             <p className={styles.p}>不用注册，不用安装，打开就能玩。</p>
           </div>
-          <Link href="/create" className={`btn-primary ${styles.ctaLarge}`}>开始捏人</Link>
+          <Link href="/create" className={`btn-primary ${styles.ctaLarge}`}>开始创建</Link>
         </div>
       </section>
     </>
