@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-10-16T01:22:20.816Z",
+  "count": 1,
+  "entries": [
+    {
+      "file": "2026-10-15.md",
+      "date": "2026-10-15",
+      "title": "用户系统与形象持久化方案决策",
+      "summary": "用户系统与形象持久化方案决策 背景 Avatar Dressup 原本没有用户体系，形象数据只存在浏览器本地。需要增加：用户注册登录、形象保存到数据库、历史形象管理、Web3 铸造预留。 决策内容 1. 认证方案：用户名密码 + JWT Cookie - 密码哈希：bcryptjs（cost factor = 10），不存明文 - 会话：jose 签发 JWT，存 HttpOnly Cookie（avatar_session） - 鉴权：src/lib/auth.ts 的 requireAuth(request) 统一在 API route 中使用 - 不上 OAuth：产品早期，用户名密码足...",
+      "tags": [
+        "auth",
+        "db",
+        "prisma",
+        "jwt",
+        "avatar",
+        "web3",
+        "mint",
+        "test"
+      ],
+      "keywords": [
+        "auth",
+        "db",
+        "prisma",
+        "jwt",
+        "avatar",
+        "web3",
+        "mint",
+        "test",
+        "用户系统与形象持久化方案决策"
+      ],
+      "updatedAt": "2026-10-16T01:08:48.224Z"
+    }
+  ]
+}
