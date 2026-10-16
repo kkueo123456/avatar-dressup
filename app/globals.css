@@ -11,7 +11,7 @@
   --text: #EFEDF3;
   --muted: #A09DAE;
   --accent: #E8A445;
-  --accent-hover: #F2B85C;
+  --accent-hover: #C98430;
   --on-accent: #1A1206;
   --ai: #AE98F2;
   --ok: #6FCF97;
@@ -42,8 +42,8 @@ button { font-family: inherit; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-/* 字体角色：变量由 app/layout.tsx 的 next/font 注入，没注入时退回正文字体 */
-.font-display { font-family: var(--font-huangyou, var(--font-body)); font-weight: 400; letter-spacing: 0.06em; }
+/* 字体角色：大标题用正文字体加粗，保证所有中文统一显示 */
+.font-display { font-family: var(--font-body); font-weight: 700; letter-spacing: 0.06em; }
 .font-mark { font-family: var(--font-orbitron, var(--font-body)); font-weight: 700; letter-spacing: 0.18em; }
 
 /* 两种胶囊按钮 */
