@@ -1,0 +1,38 @@
+stages:
+  - build
+  - deploy
+
+# 构建阶段：在 Gitee 服务器上编译，利用更强的性能
+build:
+  stage: build
+  image: node:20
+  script:
+    - npm ci --registry=https://registry.npmmirror.com
+    - npx prisma generate
+    - npm run build
+  artifacts:
+    paths:
+      - .next/
+      - public/
+      - package.json
+      - package-lock.json
+      - next.config.ts
+      - tsconfig.json
+      - prisma/
+
+# 部署阶段：把构建产物传到你的服务器并重启
+deploy:
+  stage: deploy
+  image: alpine
+  dependencies:
+    - build
+  script:
+    - apk add --no-cache openssh-client rsync
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H 49.233.148.141 >> ~/.ssh/known_hosts
+    # 同步构建产物到服务器（排除 .env，保留服务器本地配置）
+    - rsync -avz --delete --exclude=.env .next/ public/ package.json package-lock.json next.config.ts tsconfig.json prisma/ ubuntu@49.233.148.141:~/avatar-dressup/
+    # 服务器上安装依赖并重启应用
+    - ssh ubuntu@49.233.148.141 "cd ~/avatar-dressup && npm ci --registry=https://registry.npmmirror.com && pm2 delete avatar-dressup 2>/dev/null; pm2 start 'npx next start -p 3000 -H 0.0.0.0' --name avatar-dressup && pm2 save"
