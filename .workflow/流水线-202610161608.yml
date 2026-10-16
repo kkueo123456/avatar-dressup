@@ -14,8 +14,9 @@ stages:
     commands:
     - "# 设置NPM源，提升安装速度"
     - npm config set registry https://registry.npmmirror.com
-    - ""
-    - ""
+    - "# 替换lock文件里的旧镜像地址，防止下载超时"
+    - sed -i 's|https://nexus.noddincoffee.com/repository/npm-public|https://registry.npmmirror.com|g' package-lock.json
+    - sed -i 's|https://registry.npmjs.org|https://registry.npmmirror.com|g' package-lock.json
     - npm ci --registry=https://registry.npmmirror.com && npx prisma generate && npm
       run build
     artifacts:
