@@ -17,18 +17,16 @@ stages:
     - "# 替换lock文件里的旧镜像地址，防止下载超时"
     - sed -i 's|https://nexus.noddincoffee.com/repository/npm-public|https://registry.npmmirror.com|g' package-lock.json
     - sed -i 's|https://registry.npmjs.org|https://registry.npmmirror.com|g' package-lock.json
-    - npm ci --registry=https://registry.npmmirror.com && npx prisma generate && npm
-      run build
+    - npm ci --registry=https://registry.npmmirror.com
+    - npx prisma generate
+    - npm run build
+    - "# standalone模式：把 public 和 static 复制到 standalone 目录"
+    - cp -r public .next/standalone/ 2>/dev/null || true
+    - cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
     artifacts:
     - name: BUILD_ARTIFACT
       path:
-      - .next/
-      - public/
-      - package.json
-      - package-lock.json
-      - next.config.ts
-      - tsconfig.json
-      - prisma/
+      - .next/standalone/
       type: .tar.gz
     caches:
     - "~/.npm"
@@ -57,11 +55,10 @@ stages:
       artifactVersion: latest
     script: |
       cd ~/avatar-dressup
-      rm -rf .next public 2>/dev/null || true
+      rm -rf .next 2>/dev/null || true
       cp -r output/* . 2>/dev/null || true
-      npm ci --registry=https://registry.npmmirror.com
       pm2 delete avatar-dressup 2>/dev/null || true
-      pm2 start "npx next start -p 3000 -H 0.0.0.0" --name avatar-dressup
+      pm2 start ".next/standalone/server.js" --name avatar-dressup
       pm2 save
     hostGroupID:
       ID: prod
