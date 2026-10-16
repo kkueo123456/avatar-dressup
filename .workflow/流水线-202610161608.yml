@@ -56,13 +56,10 @@ stages:
       artifactVersion: latest
     script: |
       cd ~/avatar-dressup
-      rm -rf .next public output 2>/dev/null || true
+      rm -rf .next public server.js node_modules package.json 2>/dev/null || true
       tar -xzf output.tar.gz 2>/dev/null || true
-      if [ -d "output" ]; then
-        cp -r output/* . 2>/dev/null || true
-      fi
       pm2 delete avatar-dressup 2>/dev/null || true
-      pm2 start ".next/standalone/server.js" --name avatar-dressup
+      pm2 start "server.js" --name avatar-dressup
       pm2 save
     hostGroupID:
       ID: prod
@@ -106,4 +103,29 @@ variables:
       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
-      mF9Dyl7F9sLuXiVzJvp+e8th7VTZqGnT7lTirmpDViI8ly/CZoCiBeR8KljbKVbzrbMUy
+      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
+      -----END OPENSSH PRIVATE KEY-----
