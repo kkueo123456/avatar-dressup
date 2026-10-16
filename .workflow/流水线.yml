@@ -3,19 +3,17 @@ stages:
   - stage: build
     name: 构建
     steps:
-      - step: npm_build@default
+      - step: script@default
         name: 安装依赖并构建
-        inputs:
-          node_version: "20"
-          run: |
-            npm install -g n --registry=https://registry.npmmirror.com
-            n --mirror https://npmmirror.com/mirrors/node 20
-            hash -r || true
-            node -v
-            npm ci --registry=https://registry.npmmirror.com
-            npx prisma generate
-            npm run build
-      - step: artifact_upload@default
+        script: |
+          npm install -g n --registry=https://registry.npmmirror.com
+          n --mirror https://npmmirror.com/mirrors/node 20
+          hash -r || true
+          node -v
+          npm ci --registry=https://registry.npmmirror.com
+          npx prisma generate
+          npm run build
+      - step: upload_artifact@default
         name: 上传构建产物
         inputs:
           artifact_name: dist
@@ -31,22 +29,18 @@ stages:
   - stage: deploy
     name: 部署
     steps:
-      - step: artifact_download@default
+      - step: download_artifact@default
         name: 下载构建产物
         inputs:
           artifact_name: dist
           path: ~/avatar-dressup/
-      - step: ssh_deploy@default
+      - step: script@default
         name: 部署到服务器
-        inputs:
-          ssh_private_key: ${{ secrets.DEPLOY_KEY }}
-          host: 49.233.148.141
-          port: 22
-          user: ubuntu
-          deploy_dir: /home/ubuntu/avatar-dressup
-          deploy_script: |
-            cd ~/avatar-dressup
-            npm ci --registry=https://registry.npmmirror.com
-            pm2 delete avatar-dressup 2>/dev/null || true
-            pm2 start "npx next start -p 3000 -H 0.0.0.0" --name avatar-dressup
-            pm2 save
+        script: |
+          apt-get update && apt-get install -y openssh-client rsync
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 49.233.148.141 >> ~/.ssh/known_hosts
+          rsync -avz --delete --exclude=.env .next/ public/ package.json package-lock.json next.config.ts tsconfig.json prisma/ ubuntu@49.233.148.141:~/avatar-dressup/
+          ssh ubuntu@49.233.148.141 "cd ~/avatar-dressup && npm ci --registry=https://registry.npmmirror.com && pm2 delete avatar-dressup 2>/dev/null || true; pm2 start 'npx next start -p 3000 -H 0.0.0.0' --name avatar-dressup && pm2 save"
