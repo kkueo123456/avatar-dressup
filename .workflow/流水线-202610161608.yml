@@ -1,0 +1,130 @@
+version: "1.0"
+name: 构建、部署到自有主机
+displayName: 构建、部署到自有主机
+stages:
+- name: 构建
+  displayName: 构建
+  strategy: naturally
+  trigger: auto
+  steps:
+  - step: build@nodejs
+    name: ""
+    displayName: Nodejs 构建
+    nodeVersion: 20.10.0
+    commands:
+    - "# 设置NPM源，提升安装速度"
+    - npm config set registry https://registry.npmmirror.com
+    - "# 替换lock文件里的旧镜像地址，防止下载超时"
+    - sed -i 's|https://nexus.noddincoffee.com/repository/npm-public|https://registry.npmmirror.com|g' package-lock.json
+    - sed -i 's|https://registry.npmjs.org|https://registry.npmmirror.com|g' package-lock.json
+    - npm ci --registry=https://registry.npmmirror.com && npx prisma generate && npm
+      run build
+    artifacts:
+    - name: BUILD_ARTIFACT
+      path:
+      - .next/
+      - public/
+      - package.json
+      - package-lock.json
+      - next.config.ts
+      - tsconfig.json
+      - prisma/
+      type: .tar.gz
+    caches:
+    - "~/.npm"
+    - "~/.yarn"
+    notify: []
+    strategy:
+      retry: "0"
+      resource:
+        cpu: "2"
+        memory: "4"
+- name: 部署
+  displayName: 部署
+  strategy: naturally
+  trigger: auto
+  steps:
+  - step: deploy@agent
+    name: ""
+    displayName: 主机部署
+    deployArtifact:
+    - name: output
+      target: "~/avatar-dressup"
+      source: build
+      dependArtifact: BUILD_ARTIFACT
+      artifactRepository: default
+      artifactName: output
+      artifactVersion: latest
+    script: |
+      cd ~/avatar-dressup
+      rm -rf .next public 2>/dev/null || true
+      cp -r output/* . 2>/dev/null || true
+      npm ci --registry=https://registry.npmmirror.com
+      pm2 delete avatar-dressup 2>/dev/null || true
+      pm2 start "npx next start -p 3000 -H 0.0.0.0" --name avatar-dressup
+      pm2 save
+    hostGroupID:
+      ID: prod
+      hostID:
+      - 785a5426-738e-4e60-8a5e-f908b8265619
+    notify: []
+    strategy:
+      retry: "0"
+triggers:
+  trigger: manual
+notify: []
+strategy:
+  blocking: true
+variables:
+  DEPLOY_KEY:
+    type: TEXT
+    default: |
+      -----BEGIN OPENSSH PRIVATE KEY-----
+      b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAACFwAAAAdzc2gtcn
+      NhAAAAAwEAAQAAAgEAvuBJ7kvvxEPj0E0ulTx3IU6+oQtuwjxs7h1FDXGQM6vcvE+swgzP
+      kM34wa1YVWVdQu6jzpCzj/3fA5JvQbQZEwb03bVzWHb312gaU4bI3TDUMp8qnNmKISKrvX
+      yxNrYAF+JUO4usK9wRAEWcF4+nvl04gG3Xg8ikUn6CyRw7jd79E4shgNakNWJR11v7ZoPU
+      n3KbGFleHEanHxRYSlk1oPEwBhG0kQuQoh7hEoHecOyj4NlTiED0wGt7PB68yH1Lu18dg8
+      4yaWUe+7nSTqF5/7MXWl3qIH9ozDEV343NPnZ9PZVMdAr6KLb21r7nsAeIgX9vlb1p/ijY
+      rDBAhqNRm/u15xUGA8SbjFmGvlTAq8k8zBzto8vBswj8AKGHBrD37hNEvuLvpCDSq3KDzs
+      byNJ8b3Yw4GXmS3N8yy4t89ZJ2xZmZp68ve0A86rTzYVFV2ETPJ0+YQN9H+WQ7Gs0jW01a
+      DqwAs6l3K7vEBhF3F4ZZa0vC7idSAo/QxqYMtIkYUuwZPvwWD1mtWzvzKTOEUYCDwuO5bB
+      adv54bcsOAp0AkXOfOQyX5LOWSrLflTi7zJdNtLEoA/gUZKLSGXg8I656YzjXvTUbiYAIp
+      3GkNrgQoauqMFTdsVDioER9r0InCDwBs6lLiUDNiFkdO6dRZcyajErvhDVQVgJSuzEi3cq
+      8AAAdI5EGEJeRBhCUAAAAHc3NoLXJzYQAAAgEAvuBJ7kvvxEPj0E0ulTx3IU6+oQtuwjxs
+      7h1FDXGQM6vcvE+swgzPkM34wa1YVWVdQu6jzpCzj/3fA5JvQbQZEwb03bVzWHb312gaU4
+      bI3TDUMp8qnNmKISKrvXyxNrYAF+JUO4usK9wRAEWcF4+nvl04gG3Xg8ikUn6CyRw7jd79
+      E4shgNakNWJR11v7ZoPUn3KbGFleHEanHxRYSlk1oPEwBhG0kQuQoh7hEoHecOyj4NlTiE
+      D0wGt7PB68yH1Lu18dg84yaWUe+7nSTqF5/7MXWl3qIH9ozDEV343NPnZ9PZVMdAr6KLb2
+      1r7nsAeIgX9vlb1p/ijYrDBAhqNRm/u15xUGA8SbjFmGvlTAq8k8zBzto8vBswj8AKGHBr
+      D37hNEvuLvpCDSq3KDzsbyNJ8b3Yw4GXmS3N8yy4t89ZJ2xZmZp68ve0A86rTzYVFV2ETP
+      J0+YQN9H+WQ7Gs0jW01aDqwAs6l3K7vEBhF3F4ZZa0vC7idSAo/QxqYMtIkYUuwZPvwWD1
+      mtWzvzKTOEUYCDwuO5bBadv54bcsOAp0AkXOfOQyX5LOWSrLflTi7zJdNtLEoA/gUZKLSG
+      Xg8I656YzjXvTUbiYAIp3GkNrgQoauqMFTdsVDioER9r0InCDwBs6lLiUDNiFkdO6dRZcy
+      ajErvhDVQVgJSuzEi3cq8AAAADAQABAAACAF8f/hhBReOlBeLopB+Bu8kgqkYuIWuxm4Pr
+      mF9Dyl7F9sLuXiVzJvp+e8th7VTZqGnT7lTirmpDViI8ly/CZoCiBeR8KljbKVbzrbMUyA
+      Pb8tSrmBwFGh67XaWYf+TJPTCp/dqTGCHfkaV2C31+fVWUtbTjiPVHSAVIwTsi09c3Wx6j
+      RvYjgkCMmEbgs2B6sLsp7XtsBkfHOkB17i5XWS+1I37S0g87GUCCbR7BFC9o757+D/Amlx
+      NSPV9P3jt4ngZqN5ZZa6w01gUTrWi8dsVk5m2Fwkmh1YN1rvXzgGbxvCa1wh1O3y7tSATr
+      rSGAD5qh/OU+OZWNm7XscivnNqLNMunzEEa4YGRnVb4Gwn2s2alWzw+R+CjDz5JzqCHaGQ
+      jthbnAiPJwv9Om41RS9gSnWhotEtnsV1JqUILVG4qJpPl/1NFavRzdF5YRjLhch83RO39A
+      yIxR5SY+edkUa4QuOrS8XcL80ZodY5FDHyh/eaYk0PcLUSyugHaAF8zMdulATQDa99m9LA
+      iabWqlObA/b5iDkpCz+M44pgxXNARosbV6//WS1ek96Aw5gUbg7l4ncohg55sUhOgFM2Hd
+      Mhj25GG5ZumAc6iv1e3EJ/+tiLFVwoLqwhTLBznTGbmGqBi9Nv3RTqSXkyAvCbfxif2RFZ
+      fBYktfl2e8eFLwdPi5AAABAQCwZwbQVAueZmXrvdXsXRKqVHKZBYtS32T3BCttDWrXVvBc
+      8sqJocSdWmL51/xmKFbpBtdPGAOC+Sfol8FEy0BuKJs1nwclTDLdh7qafLWTgmf62VbOuk
+      jDAj5TMo2lRryRGks2jM2LfG/4HbTNOs1D96yi54fkxKrxsJ3g5CDHuMv9kdvOX7q4yi91
+      FpR0+n4YW3xd3QYefskyTaOT7qU25QAG/bN2sStYx51KU7RpWcrjqotB6YNblTRlm3s4TV
+      Ir1k3OKAGeAfla4Yb0Kss4zp82i/wsaJzRWkVweuaM0XZ2LWWyEkq5ETyGW36pWlyEbHO4
+      29NTy89o4CSFTV6rAAABAQD4VRjo2Dv9Zyre9VnBrLHlb5gil/Syd3Di2E+3wS58ePKJ5K
+      HI1oTKwCxwVeAOT3Y15Umu9GaeuZ0lqE1z4HACsbbj5aasu9cgzi9QbbH9Dl3pV7kH3dRf
+      ndvJi26vBDUo3FAIvxR82AEb0Lrti1vfdxskztpN6b3lVP6ADLf30VOcRXO2juUh2CMR6W
+      aUMBTgNJw2Ee6VfKS0Ny65QVlupnPCahb1BqoE03W5hyx+UBTto4tF23FqoMF3aIXL1NaU
+      JDX2zLNNqJplbFKq/Qs8joQbchKtJRhbV65Vg5F38XiuQV6PBUF9W9DRRoeoq0ZD4V4t0e
+      xy58ZPS6ILc8x7AAABAQDExQmp9HhNdmMYdxfd84fl1Dl3++tNjn23/vGrcpOUq5rJYlBk
+      c+FAyCoRvvuMx2XSawKjg14Vmd87m13nd4dY5ChrlWkQUk0MO8h7MQ7DjirA2Y1VIAU4ca
+      Qd4ShfdJJZdD7EOC6TVdl4IKO+nDPuKZqCLh6l3r+1/RxBMh6xRlNRoMpSytdgibN8NGgg
+      ZXYUFj810yl1zJ3met/2FbvYCybdkUC6hox5IgVTvn96n2uuC6iPlCMUAgc0n/DioW4g8r
+      RvIXM0Fqf6+xX9IdN7P1VcnJxcUtJy+XRp/Pci66QlGmlghRdg1Z9GyRVK5metwRRaL6qQ
+      gLsAPz9lY15dAAAADGdpdGVlLWRlcGxveQECAwQFBg==
+      -----END OPENSSH PRIVATE KEY-----
