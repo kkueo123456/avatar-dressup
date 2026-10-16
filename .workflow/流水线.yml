@@ -1,3 +1,4 @@
+displayName: 自动部署流水线
 stages:
   - build
   - deploy
