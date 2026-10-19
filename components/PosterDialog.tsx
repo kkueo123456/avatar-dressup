@@ -33,9 +33,11 @@ interface Props {
   onClose: () => void
   /** 返回当前视口的 JPEG data URL */
   screenshot: () => string
+  /** 海报生成完成后回调（传入海报图片 URL） */
+  onDone?: (posterUrl: string) => void
 }
 
-export default function PosterDialog({ open, onClose, screenshot }: Props) {
+export default function PosterDialog({ open, onClose, screenshot, onDone }: Props) {
   const [style, setStyle] = useState<PosterStyle>('fantasy')
   const [state, setState] = useState<State>({ kind: 'pick' })
   const dialogRef = useRef<HTMLDivElement | null>(null)
@@ -180,7 +182,10 @@ export default function PosterDialog({ open, onClose, screenshot }: Props) {
         }
 
         if (data.status === 'done') {
-          if (alive()) setState({ kind: 'done', url: data.resultImageUrl!, style })
+          if (alive()) {
+            setState({ kind: 'done', url: data.resultImageUrl!, style })
+            if (onDone && data.resultImageUrl) onDone(data.resultImageUrl)
+          }
           return
         }
         if (data.status === 'failed') {

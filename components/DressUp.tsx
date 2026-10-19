@@ -11,6 +11,7 @@ import { ThumbnailRenderer } from '@/avatar/ThumbnailRenderer'
 import { DressUpContext } from './DressUpContext'
 import PartsPanel from './PartsPanel'
 import PosterDialog from './PosterDialog'
+import SaveDialog from './SaveDialog'
 import TopBar from './TopBar'
 import Viewport from './Viewport'
 import styles from './dressup.module.css'
@@ -35,6 +36,9 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
   const [loadingIds, setLoadingIds] = useState<ReadonlySet<string>>(() => new Set())
   const [errors, setErrors] = useState<ReadonlyMap<string, string>>(() => new Map())
   const [posterOpen, setPosterOpen] = useState(false)
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [saveLoading, setSaveLoading] = useState(false)
+  const [savedAvatarId, setSavedAvatarId] = useState<string | null>(null)
 
   // 读 manifest，校验失败整页报错；如有 avatarId 同时加载历史形象
   useEffect(() => {
@@ -123,13 +127,57 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
     )
   }
 
-  // 底模还在加载时截出来的是空场景，先别让「生成海报」可点；部件加载不影响（顶多少一件衣服）
+  // 底模还在加载时截出来的是空场景，先别让「保存」可点；部件加载不影响（顶多少一件衣服）
   const baseLoading = phase.manifest.bases.some((b) => loadingIds.has(b.id))
+
+  async function handleSave(name: string, withPoster: boolean) {
+    if (!viewer) throw new Error('3D 视口未就绪')
+    setSaveLoading(true)
+    try {
+      const coverUrl = viewer.screenshot()
+      const state = phase.status === 'ready' ? phase.store.getState() : null
+      if (!state) throw new Error('形象状态未就绪')
+
+      const res = await fetch('/api/avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name,
+          baseId: state.baseId,
+          parts: state.equipped,
+          coverUrl,
+        }),
+      })
+      const data = (await res.json()) as { id?: string; error?: string }
+      if (!res.ok) {
+        throw new Error(data.error || `保存失败（${res.status}）`)
+      }
+      setSavedAvatarId(data.id || null)
+      setSaveOpen(false)
+      if (withPoster && data.id) {
+        setPosterOpen(true)
+      }
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+
+  async function handlePosterDone(posterUrl: string) {
+    if (!savedAvatarId) return
+    await fetch(`/api/avatar/${savedAvatarId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ posterUrl }),
+    })
+    setSavedAvatarId(null)
+  }
 
   return (
     <DressUpContext.Provider value={{ manifest: phase.manifest, store: phase.store, viewer, thumbs, loadingIds, errors }}>
       <div className={styles.layout}>
-        <TopBar onPoster={viewer && !baseLoading ? () => setPosterOpen(true) : undefined} />
+        <TopBar onSave={viewer && !baseLoading ? () => setSaveOpen(true) : undefined} />
         {restoreError && (
           <div className={styles.restoreWarn} role="alert">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -142,8 +190,19 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
           <Viewport containerRef={containerRef} />
           <PartsPanel />
         </div>
+        <SaveDialog
+          open={saveOpen}
+          onClose={() => setSaveOpen(false)}
+          onSave={handleSave}
+          isLoading={saveLoading}
+        />
         {viewer && (
-          <PosterDialog open={posterOpen} onClose={() => setPosterOpen(false)} screenshot={() => viewer.screenshot()} />
+          <PosterDialog
+            open={posterOpen}
+            onClose={() => setPosterOpen(false)}
+            screenshot={() => viewer.screenshot()}
+            onDone={handlePosterDone}
+          />
         )}
       </div>
     </DressUpContext.Provider>

@@ -31,6 +31,7 @@ export async function GET(request: Request, { params }: Params): Promise<Respons
       baseId: avatar.baseId,
       parts: JSON.parse(avatar.parts),
       coverUrl: avatar.coverUrl,
+      posterUrl: avatar.posterUrl,
       createdAt: avatar.createdAt.toISOString(),
       updatedAt: avatar.updatedAt.toISOString(),
       mintStatus: avatar.mintStatus,
@@ -70,10 +71,11 @@ export async function PATCH(request: Request, { params }: Params): Promise<Respo
       return jsonError('请求格式错误')
     }
 
-    const { name, coverUrl, mintStatus, tokenId, chainId, contractAddress, ownerWallet, metadataUri } =
+    const { name, coverUrl, posterUrl, mintStatus, tokenId, chainId, contractAddress, ownerWallet, metadataUri } =
       body as {
         name?: string
         coverUrl?: string | null
+        posterUrl?: string | null
         mintStatus?: string
         tokenId?: string
         chainId?: number
@@ -85,6 +87,7 @@ export async function PATCH(request: Request, { params }: Params): Promise<Respo
     const data: Record<string, unknown> = {}
     if (name !== undefined) data.name = name.trim()
     if (coverUrl !== undefined) data.coverUrl = coverUrl
+    if (posterUrl !== undefined) data.posterUrl = posterUrl
     if (mintStatus !== undefined) data.mintStatus = mintStatus
     if (tokenId !== undefined) data.tokenId = tokenId
     if (chainId !== undefined) data.chainId = chainId

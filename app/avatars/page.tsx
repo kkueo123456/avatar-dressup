@@ -1,33 +1,88 @@
+'use client'
+
 import Link from 'next/link'
-import { requireAuth, AuthError } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { useEffect, useState } from 'react'
 import AvatarCard from '../../components/AvatarCard'
 import styles from './avatars.module.css'
 
-export const runtime = 'nodejs'
+type Filter = 'all' | 'withPoster' | 'withoutPoster'
 
-export default async function AvatarsPage() {
-  let avatars: Awaited<ReturnType<typeof prisma.avatar.findMany>> = []
-  let userName = ''
+interface AvatarItem {
+  id: string
+  name: string
+  baseId: string
+  coverUrl: string | null
+  posterUrl: string | null
+  createdAt: string
+  mintStatus: string
+  tokenId: string | null
+}
 
-  try {
-    const ctx = await requireAuth()
-    userName = ctx.username
-    avatars = await prisma.avatar.findMany({
-      where: { userId: ctx.userId },
-      orderBy: { createdAt: 'desc' },
-    })
-  } catch (e) {
-    if (e instanceof AuthError && e.status === 401) {
-      return (
-        <div className={styles.guest}>
-          <h1>请先登录</h1>
-          <p>登录后可查看和管理您的形象</p>
-          <Link href="/" className="btn-primary">返回首页</Link>
-        </div>
-      )
-    }
-    throw e
+export default function AvatarsPage() {
+  const [avatars, setAvatars] = useState<AvatarItem[]>([])
+  const [filter, setFilter] = useState<Filter>('all')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [userName, setUserName] = useState('')
+
+  useEffect(() => {
+    fetch('/api/avatar', { credentials: 'include' })
+      .then(async (res) => {
+        if (res.status === 401) {
+          setError('请先登录')
+          setLoading(false)
+          return
+        }
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string }
+          throw new Error(data.error || '加载失败')
+        }
+        const data = (await res.json()) as { avatars: AvatarItem[] }
+        setAvatars(data.avatars)
+        // 从第一个 avatar 的用户信息拿不到，这里简单处理
+        setUserName('') // 实际可以从 /api/auth/me 获取
+        setLoading(false)
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : '加载失败')
+        setLoading(false)
+      })
+  }, [])
+
+  const filtered = avatars.filter((a) => {
+    if (filter === 'withPoster') return !!a.posterUrl
+    if (filter === 'withoutPoster') return !a.posterUrl
+    return true
+  })
+
+  const counts = {
+    all: avatars.length,
+    withPoster: avatars.filter((a) => !!a.posterUrl).length,
+    withoutPoster: avatars.filter((a) => !a.posterUrl).length,
+  }
+
+  const tabs: { key: Filter; label: string }[] = [
+    { key: 'all', label: `全部 (${counts.all})` },
+    { key: 'withPoster', label: `已生成海报 (${counts.withPoster})` },
+    { key: 'withoutPoster', label: `未生成海报 (${counts.withoutPoster})` },
+  ]
+
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.loading}>正在加载…</div>
+      </div>
+    )
+  }
+
+  if (error === '请先登录') {
+    return (
+      <div className={styles.guest}>
+        <h1>请先登录</h1>
+        <p>登录后可查看和管理您的形象</p>
+        <Link href="/" className="btn-primary">返回首页</Link>
+      </div>
+    )
   }
 
   return (
@@ -40,7 +95,7 @@ export default async function AvatarsPage() {
             </svg>
             首页
           </Link>
-          <h1 className={styles.title}>{userName} 的形象库</h1>
+          <h1 className={styles.title}>{userName ? `${userName} 的形象库` : '我的形象库'}</h1>
           <Link href="/create" className="btn-primary">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14" />
@@ -64,11 +119,30 @@ export default async function AvatarsPage() {
             <Link href="/create" className="btn-primary">开始创建</Link>
           </div>
         ) : (
-          <div className={styles.grid}>
-            {avatars.map((avatar) => (
-              <AvatarCard key={avatar.id} avatar={avatar} />
-            ))}
-          </div>
+          <>
+            <div className={styles.tabs} role="tablist" aria-label="筛选">
+              {tabs.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === t.key}
+                  className={`${styles.tab} ${filter === t.key ? styles.tabActive : ''}`}
+                  onClick={() => setFilter(t.key)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className={styles.grid}>
+              {filtered.map((avatar) => (
+                <AvatarCard key={avatar.id} avatar={avatar} />
+              ))}
+            </div>
+            {filtered.length === 0 && (
+              <p className={styles.emptyHint}>该分类下暂无形象</p>
+            )}
+          </>
         )}
       </main>
     </div>

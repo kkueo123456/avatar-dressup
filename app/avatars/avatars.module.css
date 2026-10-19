@@ -94,3 +94,24 @@
   margin: 0;
   color: var(--muted);
 }
+
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; color: var(--muted);
+}
+
+.tabs {
+  display: flex; gap: 8px; margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.tab {
+  height: 36px; padding: 0 16px; border-radius: var(--radius-pill);
+  border: 1px solid var(--line); background: var(--card);
+  color: var(--text); font-size: 13px; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.tab:hover { border-color: var(--line-hover); }
+.tabActive { border: 1.5px solid var(--accent); color: var(--accent); }
+.emptyHint {
+  text-align: center; color: var(--muted); padding: 40px 0;
+}

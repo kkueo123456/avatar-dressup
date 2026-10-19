@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useAuthStore } from '@/state/authStore'
 import styles from './dressup.module.css'
 
-export default function TopBar({ onPoster }: { onPoster?: () => void }) {
+export default function TopBar({ onSave }: { onSave?: () => void }) {
   const { user, setOpen, logout } = useAuthStore()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -30,11 +30,13 @@ export default function TopBar({ onPoster }: { onPoster?: () => void }) {
       </Link>
 
       <nav className={styles.topbarNav} aria-label="主导航">
-        <button type="button" className="btn-primary" onClick={onPoster} disabled={!onPoster}>
+        <button type="button" className="btn-primary" onClick={onSave} disabled={!onSave}>
           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" />
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
           </svg>
-          生成海报
+          保存
         </button>
 
         {user ? (

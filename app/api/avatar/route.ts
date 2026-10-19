@@ -63,6 +63,7 @@ export async function GET(request: Request): Promise<Response> {
         name: true,
         baseId: true,
         coverUrl: true,
+        posterUrl: true,
         createdAt: true,
         updatedAt: true,
         mintStatus: true,

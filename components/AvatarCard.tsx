@@ -11,7 +11,8 @@ interface AvatarCardProps {
     name: string
     baseId: string
     coverUrl: string | null
-    createdAt: Date
+    posterUrl?: string | null
+    createdAt: string | Date
     mintStatus: string
     tokenId: string | null
   }
@@ -78,7 +79,10 @@ export default function AvatarCard({ avatar }: AvatarCardProps) {
       <div className={styles.info}>
         <div className={styles.row}>
           <h3 className={styles.name} title={avatar.name}>{avatar.name}</h3>
-          <span className={`${styles.badge} ${badge.cls}`}>{badge.label}</span>
+          <div className={styles.badges}>
+            {avatar.posterUrl && <span className={`${styles.badge} ${styles.badgePoster}`}>已生成海报</span>}
+            <span className={`${styles.badge} ${badge.cls}`}>{badge.label}</span>
+          </div>
         </div>
         <div className={styles.meta}>
           <span>{new Date(avatar.createdAt).toLocaleDateString('zh-CN')}</span>
