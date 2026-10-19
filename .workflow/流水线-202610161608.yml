@@ -58,18 +58,19 @@ stages:
       artifactVersion: latest
     script: |
       cd ~/avatar-dressup
-      # 确保 git remote 存在
-      git remote add gitee https://gitee.com/pu_zi_jie/avatar-dressup.git 2>/dev/null || true
-      # 拉取最新代码（保留 .env 和 node_modules）
-      git stash 2>/dev/null || true
-      git pull gitee main || git pull origin main
-      # 安装依赖
+      # 备份 .env（产物里不包含它）
+      cp .env /tmp/avatar-env.backup 2>/dev/null || true
+      # 清理旧产物（保留 node_modules）
+      rm -rf .next public prisma next.config.ts tsconfig.json package.json package-lock.json
+      # 解压构建产物（Gitee deployArtifact 自动传到当前目录）
+      tar -xzf output.tar.gz 2>/dev/null || true
+      # 恢复 .env
+      cp /tmp/avatar-env.backup .env 2>/dev/null || true
+      # 安装依赖（增量，很快）
       npm install --legacy-peer-deps
       # 生成 Prisma 客户端
       npx prisma generate
-      # 构建
-      NODE_OPTIONS='--max-old-space-size=1536' npx next build
-      # 重启
+      # 启动（普通模式，自动读取 .env/public/static）
       pm2 delete avatar-dressup 2>/dev/null || true
       pm2 start "npx next start" --name avatar-dressup
       pm2 save
