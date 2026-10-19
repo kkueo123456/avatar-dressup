@@ -209,6 +209,22 @@ export default function PosterDialog({ open, onClose, screenshot }: Props) {
         {state.kind === 'pick' && (
           <>
             <p className={styles.lead}>选一种风格，把当前形象交给 AI 画成一张海报。</p>
+            <div className={styles.previewWrap}>
+              <div
+                className={`${styles.preview} ${
+                  style === 'fantasy'
+                    ? styles.previewFantasy
+                    : style === 'anime'
+                      ? styles.previewAnime
+                      : style === 'watercolor'
+                        ? styles.previewWatercolor
+                        : styles.previewCyberpunk
+                }`}
+                aria-hidden="true"
+              >
+                <span className={styles.previewLabel}>{POSTER_STYLE_LABELS[style]}</span>
+              </div>
+            </div>
             <div className={styles.chips} role="radiogroup" aria-label="风格">
               {POSTER_STYLES.map((s) => (
                 <button
