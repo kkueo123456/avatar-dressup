@@ -20,16 +20,16 @@ stages:
     - npm ci --registry=https://registry.npmmirror.com
     - npx prisma generate
     - npm run build
-    - "# standalone模式：把 public、static、prisma 引擎复制到 standalone 目录"
-    - cp -r public .next/standalone/ 2>/dev/null || true
-    - cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
-    - mkdir -p .next/standalone/node_modules/.prisma
-    - cp -r node_modules/.prisma/client .next/standalone/node_modules/.prisma/ 2>/dev/null || true
-    - cp -r prisma .next/standalone/ 2>/dev/null || true
     artifacts:
     - name: BUILD_ARTIFACT
       path:
-      - .next/standalone/
+      - .next/
+      - public/
+      - prisma/
+      - package.json
+      - package-lock.json
+      - next.config.ts
+      - tsconfig.json
       type: .tar.gz
     caches:
     - "~/.npm"
@@ -58,11 +58,12 @@ stages:
       artifactVersion: latest
     script: |
       cd ~/avatar-dressup
-      rm -rf server.js node_modules .next prisma public 2>/dev/null || true
+      rm -rf .next public prisma 2>/dev/null || true
       tar -xzf output.tar.gz 2>/dev/null || true
       set -a && source .env 2>/dev/null && set +a
+      npx prisma generate 2>/dev/null || true
       pm2 delete avatar-dressup 2>/dev/null || true
-      pm2 start "server.js" --name avatar-dressup
+      pm2 start "npx next start" --name avatar-dressup
       pm2 save
     hostGroupID:
       ID: prod
