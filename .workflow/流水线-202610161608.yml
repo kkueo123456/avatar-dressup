@@ -30,6 +30,15 @@ stages:
       - package-lock.json
       - next.config.ts
       - tsconfig.json
+      - src/
+      - components/
+      - app/
+      - types/
+      - data/
+      - lib/
+      - avatar/
+      - state/
+      - worker/
       type: .tar.gz
     caches:
     - "~/.npm"
@@ -61,16 +70,21 @@ stages:
       # 备份 .env（产物里不包含它）
       cp .env /tmp/avatar-env.backup 2>/dev/null || true
       # 清理旧产物（保留 node_modules）
-      rm -rf .next public prisma next.config.ts tsconfig.json package.json package-lock.json
-      # 解压构建产物（Gitee deployArtifact 自动传到当前目录）
+      rm -rf .next public prisma next.config.ts tsconfig.json package.json package-lock.json src components app types data lib avatar state worker
+      # 解压构建产物
       tar -xzf output.tar.gz 2>/dev/null || true
       # 恢复 .env
       cp /tmp/avatar-env.backup .env 2>/dev/null || true
-      # 安装依赖（增量，很快）
+      # 安装依赖
       npm install --legacy-peer-deps
       # 生成 Prisma 客户端
       npx prisma generate
-      # 启动（普通模式，自动读取 .env/public/static）
+      # 兜底：如果 .next/ 不存在（产物传输失败），在服务器上构建
+      if [ ! -d ".next" ] || [ ! -f ".next/BUILD_ID" ]; then
+        echo "缺少 .next/，在服务器上构建..."
+        NODE_OPTIONS='--max-old-space-size=1536' npx next build
+      fi
+      # 启动
       pm2 delete avatar-dressup 2>/dev/null || true
       pm2 start "npx next start" --name avatar-dressup
       pm2 save
