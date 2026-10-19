@@ -144,8 +144,8 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
         credentials: 'include',
         body: JSON.stringify({
           name,
-          baseId: state.baseId,
-          parts: state.equipped,
+          baseId: state.avatar.baseId,
+          parts: state.avatar.equipped,
           coverUrl,
         }),
       })
