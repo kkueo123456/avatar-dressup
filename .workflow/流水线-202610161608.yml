@@ -67,14 +67,19 @@ stages:
       artifactVersion: latest
     script: |
       cd ~/avatar-dressup
-      # 备份 .env（产物里不包含它）
+      # 备份 .env 和 public（产物里可能不包含它们）
       cp .env /tmp/avatar-env.backup 2>/dev/null || true
+      cp -r public /tmp/avatar-public.backup 2>/dev/null || true
       # 清理旧产物（保留 node_modules）
       rm -rf .next public prisma next.config.ts tsconfig.json package.json package-lock.json src components app types data lib avatar state worker
       # 解压构建产物
       tar -xzf output.tar.gz 2>/dev/null || true
       # 恢复 .env
       cp /tmp/avatar-env.backup .env 2>/dev/null || true
+      # 恢复 public（如果产物里没有，从备份或 git 恢复）
+      if [ ! -d "public" ]; then
+        cp -r /tmp/avatar-public.backup public 2>/dev/null || git checkout -- public/
+      fi
       # 安装依赖
       npm install --legacy-peer-deps
       # 生成 Prisma 客户端
