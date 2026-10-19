@@ -13,18 +13,18 @@ export default function Hero() {
       <div className={`${styles.container} ${styles.heroGrid}`}>
         <div className={styles.heroCopy}>
           <span className={`font-mark ${styles.eyebrow}`}>在线换装 · 一键出图</span>
-          <h1 className={`font-display ${styles.title}`}>创建你的虚拟形象<br />换身衣服，再做成海报</h1>
-          <p className={styles.lead}>在浏览器里直接玩：选角色、挑衣服、调发型，搭好了截张图，换一种画风就是一张新海报。</p>
+          <h1 className={`font-display ${styles.title}`}>搭个虚拟形象<br />换身行头，直接出海报</h1>
+          <p className={styles.lead}>不用装软件，浏览器打开就能玩。选人、挑衣服、调发型，搭好了截个图，换种画风就是一张新海报。</p>
           <div className={styles.ctaRow}>
             <Link href="/create" className={`btn-primary ${styles.ctaLarge}`}>
-              开始创建
+              开整
               <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </Link>
             <a href="#steps" className={`btn-ghost ${styles.ctaLarge}`}>看看怎么玩</a>
           </div>
           <div className={styles.facts}>
-            <span className={styles.fact}>不用下载，打开就能玩</span>
-            <span className={styles.fact}>素材免费，可商用</span>
+            <span className={styles.fact}>打开就能玩</span>
+            <span className={styles.fact}>素材免费商用</span>
           </div>
         </div>
         <div className={styles.art} role="img" aria-label="三张风格海报示意">

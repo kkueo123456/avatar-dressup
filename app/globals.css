@@ -47,11 +47,13 @@ button { font-family: inherit; }
   font-family: var(--font-orbitron), "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: 0.12em;
+  text-shadow: 0 0 24px rgba(232, 164, 69, 0.22), 0 0 6px rgba(232, 164, 69, 0.10);
 }
 .font-mark {
   font-family: var(--font-orbitron), "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: 0.18em;
+  text-shadow: 0 0 16px rgba(232, 164, 69, 0.18), 0 0 4px rgba(232, 164, 69, 0.08);
 }
 
 /* 两种胶囊按钮 —— 赛博朋克霓虹风格 */
@@ -71,6 +73,7 @@ button { font-family: inherit; }
 }
 .btn-primary:hover {
   background: var(--accent-hover);
+  color: var(--on-accent);
   box-shadow: 0 0 20px rgba(232, 164, 69, 0.55), 0 0 8px rgba(232, 164, 69, 0.25);
   transform: translateY(-1px);
 }
@@ -85,5 +88,6 @@ button { font-family: inherit; }
 .btn-ghost:hover {
   border-color: rgba(232, 164, 69, 0.7);
   background: rgba(232, 164, 69, 0.08);
+  color: var(--text);
   box-shadow: 0 0 16px rgba(232, 164, 69, 0.2);
 }
