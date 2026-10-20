@@ -81,7 +81,8 @@ stages:
         NODE_OPTIONS='--max-old-space-size=1536' npx next build
       fi
       # 启动（关键：先把 .env 加载到环境变量，PM2 进程才能继承 DATABASE_URL）
-      set -a && source .env && set +a
+      # 注意用 POSIX 的 . 而不是 bash 的 source，兼容 sh/dash
+      set -a && . ./.env && set +a
       pm2 delete avatar-dressup 2>/dev/null || true
       pm2 start "npx next start" --name avatar-dressup
       pm2 save
