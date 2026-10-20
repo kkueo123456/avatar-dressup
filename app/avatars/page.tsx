@@ -26,21 +26,30 @@ export default function AvatarsPage() {
   const [userName, setUserName] = useState('')
 
   useEffect(() => {
-    fetch('/api/avatar', { credentials: 'include' })
-      .then(async (res) => {
-        if (res.status === 401) {
-          setError('请先登录')
-          setLoading(false)
-          return
-        }
+    // 并行拉取形象列表和当前用户名
+    Promise.all([
+      fetch('/api/avatar', { credentials: 'include' }).then(async (res) => {
+        if (res.status === 401) return { status: 401, avatars: [] as AvatarItem[] }
         if (!res.ok) {
           const data = (await res.json()) as { error?: string }
           throw new Error(data.error || '加载失败')
         }
         const data = (await res.json()) as { avatars: AvatarItem[] }
-        setAvatars(data.avatars)
-        // 从第一个 avatar 的用户信息拿不到，这里简单处理
-        setUserName('') // 实际可以从 /api/auth/me 获取
+        return { status: 200, avatars: data.avatars }
+      }),
+      fetch('/api/auth/me', { credentials: 'include' }).then(async (res) => {
+        if (!res.ok) return ''
+        const data = (await res.json()) as { username?: string }
+        return data.username ?? ''
+      }).catch(() => ''),
+    ])
+      .then(([list, name]) => {
+        if (list.status === 401) {
+          setError('请先登录')
+        } else {
+          setAvatars(list.avatars)
+          setUserName(name)
+        }
         setLoading(false)
       })
       .catch((e: unknown) => {

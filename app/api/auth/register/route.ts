@@ -1,9 +1,19 @@
 import { prisma } from '@/lib/db'
 import { hashPassword, signToken, setSessionCookie, validateUsername, validatePassword } from '@/lib/auth'
+import { rateLimit, clientIp } from '@/lib/rateLimit'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: Request): Promise<Response> {
+  // 注册限流：同一 IP 每分钟最多 5 次，防批量注册
+  const rl = rateLimit(`register:${clientIp(request)}`, 5, 60_000)
+  if (!rl.ok) {
+    return Response.json({ error: `操作过于频繁，请 ${rl.retryAfter} 秒后再试` }, {
+      status: 429,
+      headers: { 'Retry-After': String(rl.retryAfter) },
+    })
+  }
+
   let body: unknown
   try {
     body = await request.json()

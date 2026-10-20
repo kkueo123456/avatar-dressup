@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { message } from 'antd'
 import styles from './avatarCard.module.css'
+import ConfirmDialog from './ConfirmDialog'
 
 interface AvatarCardProps {
   avatar: {
@@ -21,6 +22,7 @@ interface AvatarCardProps {
 export default function AvatarCard({ avatar }: AvatarCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   if (deleted) return null
 
@@ -31,10 +33,7 @@ export default function AvatarCard({ avatar }: AvatarCardProps) {
   }
   const badge = statusBadge[avatar.mintStatus] ?? statusBadge.UNMINTED
 
-  async function onDelete(e: React.MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!confirm(`确定要删除形象「${avatar.name}」吗？`)) return
+  async function doDelete() {
     setIsDeleting(true)
     try {
       const res = await fetch(`/api/avatar/${avatar.id}`, { method: 'DELETE', credentials: 'include' })
@@ -46,6 +45,7 @@ export default function AvatarCard({ avatar }: AvatarCardProps) {
       }
     } finally {
       setIsDeleting(false)
+      setConfirmOpen(false)
     }
   }
 
@@ -97,12 +97,23 @@ export default function AvatarCard({ avatar }: AvatarCardProps) {
             <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
           </svg>
         </Link>
-        <button type="button" className={styles.actionBtn} title="删除" onClick={onDelete} disabled={isDeleting}>
+        <button type="button" className={styles.actionBtn} title="删除" onClick={() => setConfirmOpen(true)} disabled={isDeleting}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
           </svg>
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="删除形象"
+        message={`确定要删除形象「${avatar.name}」吗？此操作不可撤销。`}
+        confirmText="删除"
+        danger
+        loading={isDeleting}
+        onConfirm={doDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   )
 }
