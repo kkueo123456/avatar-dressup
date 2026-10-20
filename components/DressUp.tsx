@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Manifest } from '@/types/manifest'
 import { loadManifest } from '@/data/manifest'
 import { assetUrl } from '@/data/assetUrl'
@@ -28,6 +29,7 @@ function reasonOf(e: unknown): string {
 }
 
 export default function DressUp({ avatarId }: { avatarId?: string }) {
+  const router = useRouter()
   const [phase, setPhase] = useState<Phase>({ status: 'loading' })
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -156,7 +158,9 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
       setSavedAvatarId(data.id || null)
       setSaveOpen(false)
       if (withPoster && data.id) {
-        setPosterOpen(true)
+        setPosterOpen(true) // 保存并生成海报：等海报流程走完再跳转
+      } else {
+        router.push('/avatars') // 仅保存：直接进入我的形象库
       }
     } finally {
       setSaveLoading(false)
@@ -172,6 +176,7 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
       body: JSON.stringify({ posterUrl }),
     })
     setSavedAvatarId(null)
+    router.push('/avatars') // 海报完成，进入我的形象库
   }
 
   return (

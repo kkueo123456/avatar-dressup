@@ -4,12 +4,14 @@
   border: 1px solid var(--line);
   background: var(--card);
   overflow: hidden;
-  transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+  transition: border-color 200ms ease, box-shadow 250ms ease;
 }
 .card:hover {
   border-color: var(--line-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  /* 双层阴影：近处贴地阴影定边界，远处柔和阴影给高度感，卡片本身不动 */
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.16),
+    0 12px 32px rgba(0, 0, 0, 0.22);
 }
 
 .link { display: block; text-decoration: none; }
