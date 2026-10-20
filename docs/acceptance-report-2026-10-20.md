@@ -5,6 +5,14 @@
 > 验收对象：main 分支最新提交 `0faebb8`（feat: rate limit login/register...）
 > 验收方式：文档与代码全量走读 + 自动化测试 + 生产构建 + 真实 HTTP 功能实测
 > 验收环境：Windows + Node 22.22.2 + pnpm 9.15.0 + SQLite（本地替代 PostgreSQL）+ POSTER_PROVIDER=mock
+>
+> **🔄 修复状态更新（2026-10-20 下午，commit `9dd0e80`）**：
+> 本报告发现的问题已全部修复并验证——P0-1 私钥移除（需用户在 Gitee/服务器侧完成轮换）、P0-2 语法错误、
+> P1-2 环境配置、P1-4 poster 鉴权+限流+归属、P2-1 parts 校验、P2-2 海报文件存储、P2-3 JWT fail-fast、
+> P2-4 dev.db 出库、P3 全部；另修复一个验收时未发现的缺陷：PATCH 不处理 parts（编辑换装被静默丢弃）。
+> 测试从 120 例扩至 138 例全通过；worker 部署方案（PM2 双进程）见 docs/deploy.md 第 6 章。
+> 仍需人工处理：① Gitee 流水线密钥管理配置 DEPLOY_KEY；② 服务器 authorized_keys 轮换；
+> ③ git 历史中的私钥清理（filter-repo）；④ 生产数据库执行 prisma db push 同步 PosterJob.userId 列。
 
 ---
 
