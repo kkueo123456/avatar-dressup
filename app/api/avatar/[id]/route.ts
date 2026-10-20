@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { requireAuth, AuthError } from '@/lib/auth'
+import { validateParts } from '@/lib/partsValidation'
 
 export const runtime = 'nodejs'
 
@@ -81,9 +82,10 @@ export async function PATCH(request: Request, { params }: Params): Promise<Respo
       return jsonError('请求格式错误')
     }
 
-    const { name, coverUrl, posterUrl, mintStatus, tokenId, chainId, contractAddress, ownerWallet, metadataUri } =
+    const { name, parts, coverUrl, posterUrl, mintStatus, tokenId, chainId, contractAddress, ownerWallet, metadataUri } =
       body as {
         name?: string
+        parts?: Record<string, string[]>
         coverUrl?: string | null
         posterUrl?: string | null
         mintStatus?: string
@@ -104,6 +106,14 @@ export async function PATCH(request: Request, { params }: Params): Promise<Respo
         return jsonError('名称最多 20 个字符')
       }
       data.name = trimmedName
+    }
+    // 编辑换装：前端编辑模式 PATCH {name, parts, coverUrl}，parts 必须严格校验后入库
+    if (parts !== undefined) {
+      const validParts = validateParts(parts)
+      if (!validParts) {
+        return jsonError('parts 格式非法：应为槽位到部件 ID 数组的映射')
+      }
+      data.parts = JSON.stringify(validParts)
     }
     if (coverUrl !== undefined) data.coverUrl = coverUrl
     if (posterUrl !== undefined) data.posterUrl = posterUrl

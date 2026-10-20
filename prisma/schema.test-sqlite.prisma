@@ -1,0 +1,67 @@
+// 临时测试用 schema：与 schema.prisma 唯一区别是 provider 为 sqlite
+// 仅用于本地无 PostgreSQL 环境下运行 DB 相关测试，勿提交
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  avatars   Avatar[]
+  posterJobs PosterJob[]
+
+  @@map("users")
+}
+
+model Avatar {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  name            String
+  baseId          String   @map("base_id")
+  parts           String   // JSON: Record<string, string[]>
+  coverUrl        String?  @map("cover_url")
+  posterUrl       String?  @map("poster_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Web3 预留字段
+  tokenId         String?  @map("token_id")
+  mintStatus      String   @default("UNMINTED") @map("mint_status") // UNMINTED | MINTING | MINTED
+  chainId         Int?     @map("chain_id")
+  contractAddress String?  @map("contract_address")
+  ownerWallet     String?  @map("owner_wallet")
+  metadataUri     String?  @map("metadata_uri")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("avatars")
+}
+
+model PosterJob {
+  id               String   @id @default(uuid())
+  style            String
+  status           String   @default("pending") // pending, running, done, failed
+  inputImageUrl    String   @map("input_image_url")
+  resultImageUrl   String?  @map("result_image_url")
+  errorMessage     String?  @map("error_message")
+  // 提交者（poster 接口需登录；级联删除，用户注销时任务一并清理）
+  userId           String?  @map("user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  startedAt        DateTime? @map("started_at")
+  finishedAt       DateTime? @map("finished_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@map("poster_jobs")
+}

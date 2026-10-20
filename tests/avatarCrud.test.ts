@@ -82,6 +82,18 @@ describe('POST /api/avatar', () => {
     expect(avatar!.baseId).toBe('base_male')
     expect(JSON.parse(avatar!.parts)).toEqual({ head: ['hair_01'], body: ['shirt_01'] })
   })
+
+  it('parts 非法结构 400（字符串/数组/嵌套脏数据一律拒绝）', async () => {
+    for (const badParts of ['not-an-object', ['hair_01'], 42, null, { hair: 'hair_01' }, { hair: [123] }]) {
+      const res = await avatarPost(authReq('POST', 'http://localhost/api/avatar', {
+        name: '坏数据', baseId: 'base_male', parts: badParts,
+      }))
+      expect(res.status).toBe(400)
+    }
+    // 确认脏数据没入库
+    const count = await prisma.avatar.count({ where: { userId: testUserId, name: '坏数据' } })
+    expect(count).toBe(0)
+  })
 })
 
 describe('GET /api/avatar', () => {
@@ -132,6 +144,28 @@ describe('PATCH /api/avatar/[id]', () => {
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.coverUrl).toBe('data:image/jpeg;base64,xxx')
+  })
+
+  it('编辑换装：PATCH parts 真正入库（历史缺陷：parts 曾被静默丢弃）', async () => {
+    const { id } = await createAvatar('换装前')
+    const newParts = { head: ['hair_02'], body: ['shirt_02'], shoes: ['shoes_01'] }
+    const res = await avatarPatch(
+      authReq('PATCH', `http://localhost/api/avatar/${id}`, { parts: newParts }),
+      { params: Promise.resolve({ id }) }
+    )
+    expect(res.status).toBe(200)
+    // 直接查库确认 parts 已更新（而不是只看响应）
+    const avatar = await prisma.avatar.findUnique({ where: { id } })
+    expect(JSON.parse(avatar!.parts)).toEqual(newParts)
+  })
+
+  it('PATCH parts 非法结构 400', async () => {
+    const { id } = await createAvatar()
+    const res = await avatarPatch(
+      authReq('PATCH', `http://localhost/api/avatar/${id}`, { parts: 'garbage' }),
+      { params: Promise.resolve({ id }) }
+    )
+    expect(res.status).toBe(400)
   })
 })
 

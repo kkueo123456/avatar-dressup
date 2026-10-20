@@ -11,6 +11,9 @@ vi.mock('next/headers', () => ({
     delete: vi.fn(),
     get: vi.fn(() => undefined),
   }),
+  headers: () => ({
+    get: vi.fn(() => 'http'),
+  }),
 }))
 
 beforeAll(async () => {
@@ -25,10 +28,13 @@ function uniq(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+let reqSeq = 0
 function jsonReq(body: unknown): Request {
+  // 每个请求独立 IP，避免触发注册/登录限流（限流按 IP 计数）
+  reqSeq += 1
   return new Request('http://localhost/api/auth', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-forwarded-for': `10.0.0.${reqSeq}` },
     body: JSON.stringify(body),
   })
 }

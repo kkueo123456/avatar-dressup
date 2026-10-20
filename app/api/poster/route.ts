@@ -1,10 +1,16 @@
 import { prisma } from '@/lib/db'
+import { requireAuth, AuthError } from '@/lib/auth'
+import { rateLimit, clientIp } from '@/lib/rateLimit'
 import { parsePosterRequest } from '@/poster/request'
 import { MAX_IMAGE_BYTES } from '@/poster/types'
 
 export const runtime = 'nodejs'
 
 const MAX_BODY_BYTES = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 64 * 1024
+
+/** 每用户每分钟最多提交 10 个海报任务（防脚本灌库导致 DB 膨胀） */
+const POSTER_RATE_MAX = 10
+const POSTER_RATE_WINDOW_MS = 60_000
 
 function jsonError(status: number, error: string): Response {
   return Response.json({ error }, { status })
@@ -31,6 +37,21 @@ async function readBodyText(request: Request): Promise<string | null> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // 1. 必须登录：海报任务消耗生成资源且结果归属用户，不接受匿名提交
+  let auth
+  try {
+    auth = await requireAuth(request)
+  } catch (e) {
+    if (e instanceof AuthError) return jsonError(e.status, e.message)
+    throw e
+  }
+
+  // 2. 用户级限流：登录用户按 userId+IP 计数，防单账号脚本刷量
+  const rl = rateLimit(`poster:${auth.userId}:${clientIp(request)}`, POSTER_RATE_MAX, POSTER_RATE_WINDOW_MS)
+  if (!rl.ok) {
+    return jsonError(429, `提交过于频繁，请 ${rl.retryAfter} 秒后再试`)
+  }
+
   const text = await readBodyText(request)
   if (text === null) return jsonError(400, '图片超过 4 MB')
 
@@ -51,6 +72,7 @@ export async function POST(request: Request): Promise<Response> {
       style,
       inputImageUrl: image,
       status: 'pending',
+      userId: auth.userId,
     },
   })
 

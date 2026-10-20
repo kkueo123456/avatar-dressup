@@ -3,9 +3,22 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies, headers } from 'next/headers'
 import { prisma } from './db'
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? 'avatar-dressup-fallback-secret'
-)
+// JWT 密钥：生产环境必须显式配置，绝不静默回退到弱默认值（否则任何知道源码的人可伪造会话）。
+// 注意是懒校验：next build 阶段（NODE_ENV=production 但无生产密钥）只做静态分析不处理请求，
+// 不能在模块顶层抛错；首次真正签发/验证 token 时才触发检查。
+let cachedSecret: Uint8Array | null = null
+
+function getJwtSecret(): Uint8Array {
+  if (cachedSecret) return cachedSecret
+  const secret = process.env.JWT_SECRET
+  if ((!secret || secret.length < 16) && process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '[运行失败] 生产环境必须在环境变量中配置 JWT_SECRET（至少 16 字符的强随机字符串），当前值缺失或过短。'
+    )
+  }
+  cachedSecret = new TextEncoder().encode(secret ?? 'avatar-dressup-dev-secret')
+  return cachedSecret
+}
 
 const SALT_ROUNDS = 10
 
@@ -27,11 +40,11 @@ export async function signToken(payload: TokenPayload): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(JWT_SECRET)
+    .sign(getJwtSecret())
 }
 
 export async function verifyToken(token: string): Promise<TokenPayload> {
-  const { payload } = await jwtVerify(token, JWT_SECRET, { clockTolerance: 60 })
+  const { payload } = await jwtVerify(token, getJwtSecret(), { clockTolerance: 60 })
   if (!payload.sub || typeof payload.sub !== 'string') {
     throw new Error('Invalid token')
   }

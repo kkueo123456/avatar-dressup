@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { requireAuth, AuthError } from '@/lib/auth'
+import { validateParts } from '@/lib/partsValidation'
 import type { AvatarState } from '@/avatar/slotRules'
 
 export const runtime = 'nodejs'
@@ -27,11 +28,17 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const trimmedName = typeof name === 'string' ? name.trim() : ''
-    if (!trimmedName || !baseId || !parts) {
+    if (!trimmedName || !baseId) {
       return jsonError('名称、底模和部件数据不能为空')
     }
     if (trimmedName.length > 20) {
       return jsonError('名称最多 20 个字符')
+    }
+
+    // parts 严格校验：必须是 Record<slotId, partId[]>，杜绝任意 JSON 入库
+    const validParts = validateParts(parts)
+    if (!validParts) {
+      return jsonError('parts 格式非法：应为槽位到部件 ID 数组的映射')
     }
 
     const avatar = await prisma.avatar.create({
@@ -39,7 +46,7 @@ export async function POST(request: Request): Promise<Response> {
         userId: ctx.userId,
         name: trimmedName,
         baseId,
-        parts: JSON.stringify(parts),
+        parts: JSON.stringify(validParts),
         coverUrl: coverUrl || null,
       },
     })

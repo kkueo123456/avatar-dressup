@@ -1,12 +1,41 @@
 import { PrismaClient } from '@prisma/client'
+import fs from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
 import { getPosterProvider } from '@/poster/index'
 import { parsePosterRequest } from '@/poster/request'
 
 const prisma = new PrismaClient()
 const provider = getPosterProvider()
 
+/**
+ * 海报文件存储目录：项目下 data/posters/（gitignore）。
+ * DB 只存短路径（/posters/<文件名>），由 Web 进程的静态路由服务。
+ * 单实例部署下 worker 与 Web 同机，直接共享本地磁盘。
+ */
+const POSTER_DIR = path.join(process.cwd(), 'data', 'posters')
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
+}
+
+/** 写入海报文件，返回可存 DB 的短路径 */
+function savePosterFile(buf: Buffer): string {
+  fs.mkdirSync(POSTER_DIR, { recursive: true })
+  const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.jpg`
+  fs.writeFileSync(path.join(POSTER_DIR, filename), buf)
+  return `/posters/${filename}`
+}
+
+/** 兼容历史数据：旧任务的 resultImageUrl 是 data URL，转存为文件并更新 DB */
+async function migrateDataUrlIfNeeded(jobId: string, dataUrl: string): Promise<string> {
+  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
+  const shortPath = savePosterFile(Buffer.from(base64, 'base64'))
+  await prisma.posterJob.update({
+    where: { id: jobId },
+    data: { resultImageUrl: shortPath },
+  })
+  return shortPath
 }
 
 async function run() {
@@ -46,8 +75,11 @@ async function run() {
 
       const out = await provider.generate(parsed.input)
 
-      // 本地 mock：把 Buffer 转成 base64 data URL 存回（真实环境应上传云存储）
-      const url = `data:image/jpeg;base64,${out.toString('base64')}`
+      // 结果写文件，DB 只存短路径（历史 data URL 自动迁移为文件）
+      const raw = job.resultImageUrl
+      const url = raw?.startsWith('data:')
+        ? await migrateDataUrlIfNeeded(job.id, raw)
+        : savePosterFile(out)
 
       await prisma.posterJob.update({
         where: { id: job.id },
@@ -58,7 +90,7 @@ async function run() {
         },
       })
 
-      console.log(`[${job.id}] 完成`)
+      console.log(`[${job.id}] 完成 -> ${url}`)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       console.error(`[${job.id}] 失败: ${msg}`)

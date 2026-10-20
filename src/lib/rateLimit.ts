@@ -14,9 +14,9 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>()
 
-/** 周期性清理过期桶，避免内存无限增长 */
-const CLEANUP_EVERY = 1000
-let opsSinceCleanup = 0
+/** 按时间间隔清理过期桶（低流量下按次数清理会导致过期桶永不释放） */
+const CLEANUP_INTERVAL_MS = 60_000
+let lastCleanupAt = 0
 
 export interface RateLimitResult {
   ok: boolean
@@ -34,8 +34,8 @@ export interface RateLimitResult {
 export function rateLimit(key: string, max: number, windowMs: number): RateLimitResult {
   const now = Date.now()
 
-  if (++opsSinceCleanup >= CLEANUP_EVERY) {
-    opsSinceCleanup = 0
+  if (now - lastCleanupAt >= CLEANUP_INTERVAL_MS) {
+    lastCleanupAt = now
     for (const [k, b] of buckets) {
       if (b.resetAt < now) buckets.delete(k)
     }
@@ -55,7 +55,7 @@ export function rateLimit(key: string, max: number, windowMs: number): RateLimit
       retryAfter: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)),
     }
   }
-  return { ok: true, remaining: max - entry.count, retryAfter: 0 })
+  return { ok: true, remaining: max - entry.count, retryAfter: 0 }
 }
 
 /** 从请求中取客户端 IP（穿透反代后的真实 IP） */
@@ -66,4 +66,10 @@ export function clientIp(request: Request): string {
     if (first) return first
   }
   return request.headers.get('x-real-ip') ?? 'unknown'
+}
+
+/** 清空全部限流计数（仅测试使用，生产代码不得调用） */
+export function resetRateLimits(): void {
+  buckets.clear()
+  lastCleanupAt = 0
 }

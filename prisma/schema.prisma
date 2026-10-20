@@ -1,4 +1,6 @@
-// 本地用 SQLite（文件），上线改 mysql:// 即可，代码不动
+// 数据库：PostgreSQL（本地与生产一致）。
+// 本地开发：cp .env.example .env，按注释启动 PostgreSQL 并填连接串。
+// 参见 docs/deploy.md 与 README「快速开始」。
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,7 +16,8 @@ model User {
   passwordHash String   @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  avatars Avatar[]
+  avatars   Avatar[]
+  posterJobs PosterJob[]
 
   @@map("users")
 }
@@ -51,10 +54,15 @@ model PosterJob {
   inputImageUrl    String   @map("input_image_url")
   resultImageUrl   String?  @map("result_image_url")
   errorMessage     String?  @map("error_message")
+  // 提交者（poster 接口需登录；级联删除，用户注销时任务一并清理）
+  userId           String?  @map("user_id")
   createdAt        DateTime @default(now()) @map("created_at")
   startedAt        DateTime? @map("started_at")
   finishedAt       DateTime? @map("finished_at")
 
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([status, createdAt])
+  @@index([userId, createdAt])
   @@map("poster_jobs")
 }

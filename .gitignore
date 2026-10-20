@@ -12,6 +12,13 @@ public/landing/src/
 .env
 .temp_poster.log
 
+# 本地数据库文件（含用户数据，绝不入库）
+prisma/*.db
+prisma/*.db-journal
+
+# 海报生成结果（worker 写入，文件存储）
+data/
+
 # 仓库根目录的素材包与临时文档，只排根目录
 /*.zip
 /*.pdf
