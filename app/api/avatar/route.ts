@@ -26,14 +26,18 @@ export async function POST(request: Request): Promise<Response> {
       coverUrl?: string
     }
 
-    if (!name || !baseId || !parts) {
+    const trimmedName = typeof name === 'string' ? name.trim() : ''
+    if (!trimmedName || !baseId || !parts) {
       return jsonError('名称、底模和部件数据不能为空')
+    }
+    if (trimmedName.length > 20) {
+      return jsonError('名称最多 20 个字符')
     }
 
     const avatar = await prisma.avatar.create({
       data: {
         userId: ctx.userId,
-        name: name.trim(),
+        name: trimmedName,
         baseId,
         parts: JSON.stringify(parts),
         coverUrl: coverUrl || null,

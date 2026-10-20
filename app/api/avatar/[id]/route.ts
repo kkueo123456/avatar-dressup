@@ -7,6 +7,16 @@ function jsonError(message: string, status: number = 400): Response {
   return Response.json({ error: message }, { status })
 }
 
+/** parts 存的是 JSON 字符串，历史数据可能损坏，损坏时返回空装备而不是抛 500 */
+function safeParseParts(raw: string): Record<string, string[]> {
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string[]>) : {}
+  } catch {
+    return {}
+  }
+}
+
 interface Params {
   params: Promise<{ id: string }>
 }
@@ -29,7 +39,7 @@ export async function GET(request: Request, { params }: Params): Promise<Respons
       id: avatar.id,
       name: avatar.name,
       baseId: avatar.baseId,
-      parts: JSON.parse(avatar.parts),
+      parts: safeParseParts(avatar.parts),
       coverUrl: avatar.coverUrl,
       posterUrl: avatar.posterUrl,
       createdAt: avatar.createdAt.toISOString(),
@@ -85,10 +95,24 @@ export async function PATCH(request: Request, { params }: Params): Promise<Respo
       }
 
     const data: Record<string, unknown> = {}
-    if (name !== undefined) data.name = name.trim()
+    if (name !== undefined) {
+      const trimmedName = typeof name === 'string' ? name.trim() : ''
+      if (!trimmedName) {
+        return jsonError('名称不能为空')
+      }
+      if (trimmedName.length > 20) {
+        return jsonError('名称最多 20 个字符')
+      }
+      data.name = trimmedName
+    }
     if (coverUrl !== undefined) data.coverUrl = coverUrl
     if (posterUrl !== undefined) data.posterUrl = posterUrl
-    if (mintStatus !== undefined) data.mintStatus = mintStatus
+    if (mintStatus !== undefined) {
+      if (!['UNMINTED', 'MINTING', 'MINTED'].includes(mintStatus)) {
+        return jsonError('mintStatus 取值非法')
+      }
+      data.mintStatus = mintStatus
+    }
     if (tokenId !== undefined) data.tokenId = tokenId
     if (chainId !== undefined) data.chainId = chainId
     if (contractAddress !== undefined) data.contractAddress = contractAddress

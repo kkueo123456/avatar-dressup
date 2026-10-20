@@ -8,11 +8,13 @@ interface Props {
   onClose: () => void
   onSave: (name: string, withPoster: boolean) => Promise<void>
   isLoading?: boolean
+  /** 编辑已有形象时带入原名称回显 */
+  initialName?: string
 }
 
 const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
-export default function SaveDialog({ open, onClose, onSave, isLoading }: Props) {
+export default function SaveDialog({ open, onClose, onSave, isLoading, initialName }: Props) {
   const [name, setName] = useState('')
   const [withPoster, setWithPoster] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -24,12 +26,13 @@ export default function SaveDialog({ open, onClose, onSave, isLoading }: Props) 
 
   useEffect(() => {
     if (open) {
-      setName('')
+      setName(initialName?.slice(0, 20) ?? '')
       setWithPoster(false)
       setError(null)
       setTimeout(() => inputRef.current?.focus(), 50)
     }
-  }, [open])
+    // initialName 变化（异步加载完成）时同步回显
+  }, [open, initialName])
 
   useEffect(() => {
     if (!open) return

@@ -41,6 +41,7 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
   const [saveOpen, setSaveOpen] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [savedAvatarId, setSavedAvatarId] = useState<string | null>(null)
+  const [avatarName, setAvatarName] = useState<string | null>(null)
 
   // 读 manifest，校验失败整页报错；如有 avatarId 同时加载历史形象
   useEffect(() => {
@@ -57,11 +58,12 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
               const data = (await res.json()) as { error?: string }
               throw new Error(data.error || '加载形象失败')
             }
-            const data = (await res.json()) as { baseId: string; parts: Record<string, string[]> }
+            const data = (await res.json()) as { name?: string; baseId: string; parts: Record<string, string[]> }
             store.getState().replace({
               baseId: data.baseId,
               equipped: data.parts,
             })
+            if (!cancelled) setAvatarName(data.name ?? null)
           } catch (e) {
             if (!cancelled) setRestoreError(reasonOf(e))
           }
@@ -140,24 +142,26 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
       const state = phase.status === 'ready' ? phase.store.getState() : null
       if (!state) throw new Error('形象状态未就绪')
 
-      const res = await fetch('/api/avatar', {
-        method: 'POST',
+      // 编辑已有形象 → PATCH 更新；新形象 → POST 创建（避免编辑后保存产生重复形象）
+      const isEditing = !!avatarId
+      const res = await fetch(isEditing ? `/api/avatar/${avatarId}` : '/api/avatar', {
+        method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          name,
-          baseId: state.avatar.baseId,
-          parts: state.avatar.equipped,
-          coverUrl,
-        }),
+        body: JSON.stringify(
+          isEditing
+            ? { name, parts: state.avatar.equipped, coverUrl }
+            : { name, baseId: state.avatar.baseId, parts: state.avatar.equipped, coverUrl },
+        ),
       })
       const data = (await res.json()) as { id?: string; error?: string }
       if (!res.ok) {
         throw new Error(data.error || `保存失败（${res.status}）`)
       }
-      setSavedAvatarId(data.id || null)
+      setSavedAvatarId(data.id || avatarId || null)
+      setAvatarName(name)
       setSaveOpen(false)
-      if (withPoster && data.id) {
+      if (withPoster && (data.id || avatarId)) {
         setPosterOpen(true) // 保存并生成海报：等海报流程走完再跳转
       } else {
         router.push('/avatars') // 仅保存：直接进入我的形象库
@@ -169,12 +173,17 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
 
   async function handlePosterDone(posterUrl: string) {
     if (!savedAvatarId) return
-    await fetch(`/api/avatar/${savedAvatarId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ posterUrl }),
-    })
+    try {
+      await fetch(`/api/avatar/${savedAvatarId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ posterUrl }),
+      })
+    } catch (e) {
+      // 回写失败不阻塞流程，形象本体已保存
+      console.error('海报地址回写失败:', e)
+    }
     setSavedAvatarId(null)
     router.push('/avatars') // 海报完成，进入我的形象库
   }
@@ -200,6 +209,7 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
           onClose={() => setSaveOpen(false)}
           onSave={handleSave}
           isLoading={saveLoading}
+          initialName={avatarName ?? undefined}
         />
         {viewer && (
           <PosterDialog
