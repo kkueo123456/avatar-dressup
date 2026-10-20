@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { prisma } from './db'
 
 const JWT_SECRET = new TextEncoder().encode(
@@ -45,9 +45,12 @@ export const COOKIE_NAME = 'avatar_session'
 
 export async function setSessionCookie(token: string): Promise<void> {
   const cookieStore = await cookies()
+  const headerStore = await headers()
+  // 只有 HTTPS 请求才设 Secure，否则 HTTP 直连（IP:3000）时浏览器不发送 Cookie
+  const proto = headerStore.get('x-forwarded-proto') ?? 'http'
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: proto === 'https',
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
