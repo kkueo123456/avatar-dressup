@@ -86,12 +86,10 @@ async function exportOne(srcDoc, meshName, outPath, sex) {
   const targetMesh = root.listMeshes().find((m) => m.getName() === meshName)
   if (!targetMesh) throw new Error(`找不到 mesh ${meshName}`)
 
-  // 显式删除所有非目标 mesh（prune 不会删 Root 直接持有的 mesh 资源）
-  for (const mesh of [...root.listMeshes()]) {
-    if (mesh.getName() !== meshName) mesh.dispose()
-  }
-
-  // 清空场景里除目标外的所有 mesh 节点引用
+  // 只断开场景里非目标节点的 mesh 引用；由 prune 清理孤儿资源。
+  // 千万不要 mesh.dispose()：dispose 会级联释放 mesh 引用的共享资源
+  // （蒙皮 accessor/bufferView），破坏 62 骨蒙皮数据——产物表现为
+  // 人物缩成 0.56m 并悬空 1 米（蒙皮矩阵错乱），线上"切体型人没了"的根因之一。
   const scene = root.getDefaultScene() ?? root.listScenes()[0]
   if (scene) {
     for (const node of [...scene.listChildren()]) {
