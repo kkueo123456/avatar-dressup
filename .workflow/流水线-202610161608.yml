@@ -108,12 +108,11 @@ notify: []
 strategy:
   blocking: true
 variables:
+  # 安全说明：原配置曾将部署服务器 SSH 私钥（DEPLOY_KEY）明文硬编码于此并提交 git，属安全事故。
+  # 私钥入库即视为泄露，必须：1) 删除服务器 authorized_keys 中对应公钥并重新生成密钥对；
+  # 2) 在 Gitee「仓库设置 → 流水线 → 密钥管理」中配置 DEPLOY_KEY；
+  # 3) 若仓库曾公开，用 git filter-repo 清理历史提交。
+  # 注：本流水线当前未引用 DEPLOY_KEY（部署走 hostGroupID 主机组认证）。
   DEPLOY_KEY:
     type: TEXT
-    default: |
-      # 安全说明：原配置曾将部署服务器 SSH 私钥（DEPLOY_KEY）明文硬编码于此并提交 git，
-# 属于安全事故——私钥已入库即视为泄露。必须：
-# 1) 删除服务器 authorized_keys 中对应公钥并重新生成密钥对
-# 2) 在 Gitee「仓库设置 → 流水线 → 密钥管理」中配置 DEPLOY_KEY
-# 3) 若仓库曾公开，用 git filter-repo 清理历史提交
-TO_BE_CONFIGURED_IN_GITEE_PIPELINE_SECRETS
+    default: TO_BE_CONFIGURED_IN_GITEE_PIPELINE_SECRETS
