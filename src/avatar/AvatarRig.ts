@@ -5,6 +5,7 @@ import {
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'
 import type { AnimationRef, BaseModel, Part } from '@/types/manifest'
 import type { GltfSource, LoadedGltf } from './PartLoader'
+import { retargetClipToJustCreate } from './retarget'
 import { buildBoneMap, collectSkinnedMeshes, rebindToSkeleton } from './rebind'
 
 export class PartBindError extends Error {
@@ -30,6 +31,8 @@ export class AvatarRig {
   private readonly pending = new Set<string>()
   private mixer: AnimationMixer | null = null
   private baseToken = 0
+  /** 当前底模的骨架体系，决定动画是否需要重定向 */
+  private rig: 'quaternius' | 'justcreate' = 'quaternius'
 
   constructor(
     private readonly source: GltfSource,
@@ -64,6 +67,7 @@ export class AvatarRig {
     if (!skinned.length) throw new Error(`底模 ${base.id} 没有蒙皮网格`)
     this.skeleton = skinned[0].skeleton
     this.boneByName = buildBoneMap(this.skeleton)
+    this.rig = base.rig ?? 'quaternius'
     scene.traverse((o) => {
       const mesh = o as Mesh
       if (!mesh.isMesh) return
@@ -140,7 +144,9 @@ export class AvatarRig {
       AnimationClip.findByName(gltf.animations, anim.clip) ?? gltf.animations[0]
     if (!clip) throw new Error(`动画文件 ${anim.url} 没有剪辑`)
     mixer.stopAllAction()
-    const action = mixer.clipAction(clip)
+    // 动画是 Quaternius 命名；JustCreate 底模需要改写轨道骨名
+    const finalClip = this.rig === 'justcreate' ? retargetClipToJustCreate(clip) : clip
+    const action = mixer.clipAction(finalClip)
     action.setLoop(LoopRepeat, Infinity)
     action.play()
   }

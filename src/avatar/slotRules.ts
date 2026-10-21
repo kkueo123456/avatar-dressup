@@ -13,6 +13,8 @@ export function createEmptyState(manifest: Manifest, baseId: string): AvatarStat
 }
 
 export function partFitsBase(part: Part, base: BaseModel): boolean {
+  // 骨架体系必须一致（缺省视为 quaternius，兼容旧 manifest）
+  if ((part.rig ?? 'quaternius') !== (base.rig ?? 'quaternius')) return false
   return part.sex === 'any' || part.sex === base.sex
 }
 

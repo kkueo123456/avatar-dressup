@@ -1,24 +1,57 @@
 {
-  "version": 1,
+  "version": 2,
   "skeleton": {
     "rootBone": "root",
     "expectedBones": 65
+  },
+  "skeletons": {
+    "quaternius": {
+      "rootBone": "root",
+      "expectedBones": 65
+    },
+    "justcreate": {
+      "rootBone": "Hips",
+      "expectedBones": 62
+    }
   },
   "bases": [
     {
       "id": "superhero_female_fullbody",
       "sex": "female",
       "label": "女性",
-      "url": "models/base/superhero_female_fullbody.glb"
+      "url": "models/base/superhero_female_fullbody.glb",
+      "rig": "quaternius"
     },
     {
       "id": "superhero_male_fullbody",
       "sex": "male",
       "label": "男性",
-      "url": "models/base/superhero_male_fullbody.glb"
+      "url": "models/base/superhero_male_fullbody.glb",
+      "rig": "quaternius"
+    },
+    {
+      "id": "sm_female_base_body",
+      "sex": "female",
+      "label": "女性·新体型",
+      "url": "models/base/sm_female_base_body.glb",
+      "rig": "justcreate"
+    },
+    {
+      "id": "sm_male_base_body",
+      "sex": "male",
+      "label": "男性·新体型",
+      "url": "models/base/sm_male_base_body.glb",
+      "rig": "justcreate"
     }
   ],
   "slots": [
+    {
+      "id": "face",
+      "label": "脸",
+      "group": "head",
+      "multiple": false,
+      "outfit": false
+    },
     {
       "id": "hair",
       "label": "发型",
@@ -77,6 +110,7 @@
       "label": "女性眉",
       "sex": "female",
       "url": "models/eyebrows/eyebrows_female.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -86,6 +120,7 @@
       "label": "常规眉",
       "sex": "any",
       "url": "models/eyebrows/eyebrows_regular.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -95,6 +130,7 @@
       "label": "胡须",
       "sex": "any",
       "url": "models/hair/hair_beard.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -104,6 +140,7 @@
       "label": "丸子头",
       "sex": "any",
       "url": "models/hair/hair_buns.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -113,6 +150,7 @@
       "label": "寸头",
       "sex": "any",
       "url": "models/hair/hair_buzzed.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -122,6 +160,7 @@
       "label": "寸头 女款",
       "sex": "female",
       "url": "models/hair/hair_buzzedfemale.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -131,6 +170,7 @@
       "label": "长发",
       "sex": "any",
       "url": "models/hair/hair_long.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -140,6 +180,387 @@
       "label": "分头",
       "sex": "any",
       "url": "models/hair/hair_simpleparted.glb",
+      "rig": "quaternius",
+      "variants": []
+    },
+    {
+      "id": "sm_female_base_arms",
+      "slot": "arms",
+      "set": "base",
+      "label": "初始装 护臂",
+      "sex": "female",
+      "url": "models/outfits/base/sm_female_base_arms.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_female_base_boots",
+      "slot": "feet",
+      "set": "base",
+      "label": "初始装 鞋靴",
+      "sex": "female",
+      "url": "models/outfits/base/sm_female_base_boots.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_female_base_legs",
+      "slot": "legs",
+      "set": "base",
+      "label": "初始装 长裤",
+      "sex": "female",
+      "url": "models/outfits/base/sm_female_base_legs.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_female_face_01",
+      "slot": "face",
+      "set": null,
+      "label": "脸 1",
+      "sex": "female",
+      "url": "models/face/sm_female_face_01.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_female_hair_01",
+      "slot": "hair",
+      "set": null,
+      "label": "马尾",
+      "sex": "female",
+      "url": "models/hair/sm_female_hair_01.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_acc_01",
+      "slot": "accessory",
+      "set": "acc",
+      "label": "配饰 1",
+      "sex": "male",
+      "url": "models/outfits/acc/sm_male_acc_01.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_acc_02",
+      "slot": "accessory",
+      "set": "acc",
+      "label": "配饰 2",
+      "sex": "male",
+      "url": "models/outfits/acc/sm_male_acc_02.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_acc_03",
+      "slot": "accessory",
+      "set": "acc",
+      "label": "配饰 3",
+      "sex": "male",
+      "url": "models/outfits/acc/sm_male_acc_03.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_acc_04",
+      "slot": "accessory",
+      "set": "acc",
+      "label": "配饰 4",
+      "sex": "male",
+      "url": "models/outfits/acc/sm_male_acc_04.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_acc_05",
+      "slot": "accessory",
+      "set": "acc",
+      "label": "配饰 5",
+      "sex": "male",
+      "url": "models/outfits/acc/sm_male_acc_05.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_acc_06",
+      "slot": "accessory",
+      "set": "acc",
+      "label": "配饰 6",
+      "sex": "male",
+      "url": "models/outfits/acc/sm_male_acc_06.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_acc_07",
+      "slot": "accessory",
+      "set": "acc",
+      "label": "配饰 7",
+      "sex": "male",
+      "url": "models/outfits/acc/sm_male_acc_07.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_acc_08",
+      "slot": "accessory",
+      "set": "acc",
+      "label": "配饰 8",
+      "sex": "male",
+      "url": "models/outfits/acc/sm_male_acc_08.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_base_arms",
+      "slot": "arms",
+      "set": "base",
+      "label": "初始装 护臂",
+      "sex": "male",
+      "url": "models/outfits/base/sm_male_base_arms.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_base_boots",
+      "slot": "feet",
+      "set": "base",
+      "label": "初始装 鞋靴",
+      "sex": "male",
+      "url": "models/outfits/base/sm_male_base_boots.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_base_legs",
+      "slot": "legs",
+      "set": "base",
+      "label": "初始装 长裤",
+      "sex": "male",
+      "url": "models/outfits/base/sm_male_base_legs.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_face_01",
+      "slot": "face",
+      "set": null,
+      "label": "脸 1",
+      "sex": "male",
+      "url": "models/face/sm_male_face_01.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_face_02",
+      "slot": "face",
+      "set": null,
+      "label": "脸 2",
+      "sex": "male",
+      "url": "models/face/sm_male_face_02.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_face_03",
+      "slot": "face",
+      "set": null,
+      "label": "脸 3",
+      "sex": "male",
+      "url": "models/face/sm_male_face_03.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_face_04",
+      "slot": "face",
+      "set": null,
+      "label": "脸 4",
+      "sex": "male",
+      "url": "models/face/sm_male_face_04.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_face_05",
+      "slot": "face",
+      "set": null,
+      "label": "脸 5",
+      "sex": "male",
+      "url": "models/face/sm_male_face_05.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_hair_01",
+      "slot": "hair",
+      "set": null,
+      "label": "短发",
+      "sex": "male",
+      "url": "models/hair/sm_male_hair_01.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_hair_02",
+      "slot": "hair",
+      "set": null,
+      "label": "背头",
+      "sex": "male",
+      "url": "models/hair/sm_male_hair_02.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_hair_03",
+      "slot": "hair",
+      "set": null,
+      "label": "卷发",
+      "sex": "male",
+      "url": "models/hair/sm_male_hair_03.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_hair_04",
+      "slot": "hair",
+      "set": null,
+      "label": "长发",
+      "sex": "male",
+      "url": "models/hair/sm_male_hair_04.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_hair_05",
+      "slot": "hair",
+      "set": null,
+      "label": "光头",
+      "sex": "male",
+      "url": "models/hair/sm_male_hair_05.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_heavy_arms",
+      "slot": "arms",
+      "set": "heavy",
+      "label": "重甲 护臂",
+      "sex": "male",
+      "url": "models/outfits/heavy/sm_male_heavy_arms.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_heavy_body",
+      "slot": "body",
+      "set": "heavy",
+      "label": "重甲 上衣",
+      "sex": "male",
+      "url": "models/outfits/heavy/sm_male_heavy_body.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_heavy_boots",
+      "slot": "feet",
+      "set": "heavy",
+      "label": "重甲 鞋靴",
+      "sex": "male",
+      "url": "models/outfits/heavy/sm_male_heavy_boots.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_heavy_legs",
+      "slot": "legs",
+      "set": "heavy",
+      "label": "重甲 长裤",
+      "sex": "male",
+      "url": "models/outfits/heavy/sm_male_heavy_legs.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_light_arms",
+      "slot": "arms",
+      "set": "light",
+      "label": "轻甲 护臂",
+      "sex": "male",
+      "url": "models/outfits/light/sm_male_light_arms.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_light_body",
+      "slot": "body",
+      "set": "light",
+      "label": "轻甲 上衣",
+      "sex": "male",
+      "url": "models/outfits/light/sm_male_light_body.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_light_boots",
+      "slot": "feet",
+      "set": "light",
+      "label": "轻甲 鞋靴",
+      "sex": "male",
+      "url": "models/outfits/light/sm_male_light_boots.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_light_legs",
+      "slot": "legs",
+      "set": "light",
+      "label": "轻甲 长裤",
+      "sex": "male",
+      "url": "models/outfits/light/sm_male_light_legs.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_wizard_arms",
+      "slot": "arms",
+      "set": "wizard",
+      "label": "法师 护臂",
+      "sex": "male",
+      "url": "models/outfits/wizard/sm_male_wizard_arms.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_wizard_body",
+      "slot": "body",
+      "set": "wizard",
+      "label": "法师 上衣",
+      "sex": "male",
+      "url": "models/outfits/wizard/sm_male_wizard_body.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_wizard_boots",
+      "slot": "feet",
+      "set": "wizard",
+      "label": "法师 鞋靴",
+      "sex": "male",
+      "url": "models/outfits/wizard/sm_male_wizard_boots.glb",
+      "rig": "justcreate",
+      "variants": []
+    },
+    {
+      "id": "sm_male_wizard_legs",
+      "slot": "legs",
+      "set": "wizard",
+      "label": "法师 长裤",
+      "sex": "male",
+      "url": "models/outfits/wizard/sm_male_wizard_legs.glb",
+      "rig": "justcreate",
       "variants": []
     },
     {
@@ -149,6 +570,7 @@
       "label": "农夫 护臂",
       "sex": "female",
       "url": "models/outfits/peasant/female_peasant_arms.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -158,6 +580,7 @@
       "label": "农夫 上衣",
       "sex": "female",
       "url": "models/outfits/peasant/female_peasant_body.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -167,6 +590,7 @@
       "label": "农夫 鞋",
       "sex": "female",
       "url": "models/outfits/peasant/female_peasant_feet.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -176,6 +600,7 @@
       "label": "农夫 长裤",
       "sex": "female",
       "url": "models/outfits/peasant/female_peasant_legs.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -185,6 +610,7 @@
       "label": "游侠 肩甲",
       "sex": "female",
       "url": "models/outfits/ranger/female_ranger_acc_pauldrons.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -194,6 +620,7 @@
       "label": "游侠 护臂",
       "sex": "female",
       "url": "models/outfits/ranger/female_ranger_arms.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -203,6 +630,7 @@
       "label": "游侠 上衣",
       "sex": "female",
       "url": "models/outfits/ranger/female_ranger_body.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -212,6 +640,7 @@
       "label": "游侠 鞋",
       "sex": "female",
       "url": "models/outfits/ranger/female_ranger_feet.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -221,6 +650,7 @@
       "label": "游侠 兜帽",
       "sex": "female",
       "url": "models/outfits/ranger/female_ranger_head_hood.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -230,6 +660,7 @@
       "label": "游侠 长裤",
       "sex": "female",
       "url": "models/outfits/ranger/female_ranger_legs.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -239,6 +670,7 @@
       "label": "农夫 护臂",
       "sex": "male",
       "url": "models/outfits/peasant/male_peasant_arms.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -248,6 +680,7 @@
       "label": "农夫 上衣",
       "sex": "male",
       "url": "models/outfits/peasant/male_peasant_body.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -257,6 +690,7 @@
       "label": "农夫 鞋",
       "sex": "male",
       "url": "models/outfits/peasant/male_peasant_feet.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -266,6 +700,7 @@
       "label": "农夫 长裤",
       "sex": "male",
       "url": "models/outfits/peasant/male_peasant_legs.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -275,6 +710,7 @@
       "label": "游侠 肩甲",
       "sex": "male",
       "url": "models/outfits/ranger/male_ranger_acc_pauldron.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -284,6 +720,7 @@
       "label": "游侠 护臂",
       "sex": "male",
       "url": "models/outfits/ranger/male_ranger_arms.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -293,6 +730,7 @@
       "label": "游侠 上衣",
       "sex": "male",
       "url": "models/outfits/ranger/male_ranger_body.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -302,6 +740,7 @@
       "label": "游侠 长靴",
       "sex": "male",
       "url": "models/outfits/ranger/male_ranger_feet_boots.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -311,6 +750,7 @@
       "label": "游侠 兜帽",
       "sex": "male",
       "url": "models/outfits/ranger/male_ranger_head_hood.glb",
+      "rig": "quaternius",
       "variants": []
     },
     {
@@ -320,10 +760,41 @@
       "label": "游侠 长裤",
       "sex": "male",
       "url": "models/outfits/ranger/male_ranger_legs.glb",
+      "rig": "quaternius",
       "variants": []
     }
   ],
   "presets": [
+    {
+      "id": "heavy",
+      "label": "重甲",
+      "parts": {
+        "arms": "sm_male_heavy_arms",
+        "body": "sm_male_heavy_body",
+        "feet": "sm_male_heavy_boots",
+        "legs": "sm_male_heavy_legs"
+      }
+    },
+    {
+      "id": "light",
+      "label": "轻甲",
+      "parts": {
+        "arms": "sm_male_light_arms",
+        "body": "sm_male_light_body",
+        "feet": "sm_male_light_boots",
+        "legs": "sm_male_light_legs"
+      }
+    },
+    {
+      "id": "wizard",
+      "label": "法师",
+      "parts": {
+        "arms": "sm_male_wizard_arms",
+        "body": "sm_male_wizard_body",
+        "feet": "sm_male_wizard_boots",
+        "legs": "sm_male_wizard_legs"
+      }
+    },
     {
       "id": "peasant",
       "label": "农夫",

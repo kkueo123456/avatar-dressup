@@ -12,7 +12,7 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
 import { dedup, prune, resample, textureCompress } from '@gltf-transform/functions'
 import { buildPresets, chooseAnimation, classifyFiles } from './lib/classify.mjs'
 import { resolveGltfUris } from './lib/gltf-resources.mjs'
-import { nameLabels, pieceLabels, rules, setLabels, skeleton, slotLabels, slots } from './manifest.config.mjs'
+import { nameLabels, pieceLabels, rules, setLabels, skeleton, skeletons, slotLabels, slots } from './manifest.config.mjs'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SRC = path.join(ROOT, 'assets-src')
@@ -55,14 +55,13 @@ async function inspect(abs) {
   return { doc, meshNames, joints, clips }
 }
 
-/** 去重、裁剪、重采样，贴图缩到 TEXTURE_MAX 并转 webp，写成单文件 glb */
-async function writeGlb(doc, relUrl) {
-  await doc.transform(
-    dedup(),
-    prune(),
-    resample(),
-    textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [TEXTURE_MAX, TEXTURE_MAX], quality: 85 }),
-  )
+/** 去重、裁剪、重采样，贴图缩到 TEXTURE_MAX 并转 webp，写成单文件 glb。
+ *  JustCreate 用调色板纹理（UV 指向 16x16 色块），不能缩放/重编码过度，只转 webp 不缩放。 */
+async function writeGlb(doc, relUrl, { resizeTexture = true } = {}) {
+  const transforms = resizeTexture
+    ? [dedup(), prune(), resample(), textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [TEXTURE_MAX, TEXTURE_MAX], quality: 85 })]
+    : [dedup(), prune(), resample(), textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 90 })]
+  await doc.transform(...transforms)
   const dest = path.join(OUT, relUrl)
   await mkdir(path.dirname(dest), { recursive: true })
   await io.write(dest, doc)
@@ -97,17 +96,20 @@ async function main() {
   await mkdir(OUT, { recursive: true })
   const warnings = []
 
+  const rigOf = (entry) => entry.rig ?? 'quaternius'
   for (const b of cls.bases) {
     const { doc, joints } = await inspect(path.join(SRC, b.src))
-    if (joints !== skeleton.expectedBones) warnings.push(`${b.src} 骨骼数 ${joints}，期望 ${skeleton.expectedBones}`)
-    await writeGlb(doc, b.url)
+    const expect = skeletons[rigOf(b)].expectedBones
+    if (joints && joints !== expect) warnings.push(`${b.src} 骨骼数 ${joints}，期望 ${expect}`)
+    await writeGlb(doc, b.url, { resizeTexture: rigOf(b) !== 'justcreate' })
     delete b.src
   }
 
   for (const p of cls.parts) {
     const { doc, joints } = await inspect(path.join(SRC, p.src))
-    if (joints && joints !== skeleton.expectedBones) warnings.push(`${p.src} 骨骼数 ${joints}，期望 ${skeleton.expectedBones}`)
-    await writeGlb(doc, p.url)
+    const expect = skeletons[rigOf(p)].expectedBones
+    if (joints && joints !== expect) warnings.push(`${p.src} 骨骼数 ${joints}，期望 ${expect}`)
+    await writeGlb(doc, p.url, { resizeTexture: rigOf(p) !== 'justcreate' })
     delete p.src
   }
 
@@ -142,7 +144,7 @@ async function main() {
 
   const outfitSlotIds = slots.filter((s) => s.outfit).map((s) => s.id)
   const manifest = {
-    version: 1, skeleton, bases: cls.bases, slots, parts: cls.parts,
+    version: 2, skeleton, skeletons, bases: cls.bases, slots, parts: cls.parts,
     presets: buildPresets(cls.parts, outfitSlotIds, setLabels), animations,
   }
   await writeFile(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')

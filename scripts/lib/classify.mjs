@@ -21,9 +21,9 @@ export function detectSex(rel) {
   return 'any'
 }
 
-/** 去掉 Female_ / Male_ 前缀后的文件名分段 */
+/** 去掉 Female_ / Male_ 前缀后的文件名分段；JustCreate 导出文件带 sm_ 前缀，一并剥掉 */
 function tokens(rel) {
-  const name = baseName(rel).replace(/^(female|male)[_\-\s]+/i, '')
+  const name = baseName(rel).replace(/^(sm[_\-\s]+)?(female|male)[_\-\s]+/i, '')
   return name.split(/[_\-\s]+/).filter(Boolean)
 }
 
@@ -41,6 +41,11 @@ export function detectPiece(rel) {
 /** @param {string} rel */
 export function labelFromFile(rel) {
   return baseName(rel).replace(/[_\-]+/g, ' ').trim()
+}
+
+/** 骨架体系：justcreate 目录下的是 JustCreate 62 骨 Mixamo 命名，其余是 Quaternius 65 骨 */
+export function detectRig(rel) {
+  return /^justcreate\//i.test(rel) ? 'justcreate' : 'quaternius'
 }
 
 /**
@@ -65,20 +70,21 @@ export function classifyFiles(files, rules, opts = {}) {
     if (rule.kind === 'base') {
       out.bases.push({
         id: slug, sex: detectSex(rel), label: nameLabels[slug] ?? labelFromFile(rel), src: rel,
-        url: `models/base/${slug}.glb`,
+        url: `models/base/${slug}.glb`, rig: detectRig(rel),
       })
     } else if (rule.kind === 'animation') {
       out.animations.push({ id: slug, label: labelFromFile(rel), src: rel, url: `anim/${slug}.glb`, clip: '' })
     } else {
       const slot = rule.slot ?? 'accessory'
-      const headSlot = slot === 'hair' || slot === 'eyebrows'
+      const headSlot = slot === 'hair' || slot === 'eyebrows' || slot === 'face'
       const set = headSlot ? null : detectSet(rel)
       const piece = headSlot ? '' : detectPiece(rel)
       const dir = set ? `models/outfits/${set}` : `models/${slot}`
-      const label = headSlot
-        ? (nameLabels[slug] ?? labelFromFile(rel))
-        : `${setLabels[set] ?? set} ${pieceLabels[piece] ?? slotLabels[slot] ?? slot}`
-      out.parts.push({ id: slug, slot, set, label, sex: detectSex(rel), src: rel, url: `${dir}/${slug}.glb`, variants: [] })
+      const label = nameLabels[slug]
+        ?? (headSlot
+          ? labelFromFile(rel)
+          : `${setLabels[set] ?? set} ${pieceLabels[piece] ?? slotLabels[slot] ?? slot}`)
+      out.parts.push({ id: slug, slot, set, label, sex: detectSex(rel), src: rel, url: `${dir}/${slug}.glb`, rig: detectRig(rel), variants: [] })
     }
   }
   return out

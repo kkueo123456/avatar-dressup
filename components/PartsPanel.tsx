@@ -15,6 +15,9 @@ import styles from './dressup.module.css'
 const PRESET_SWATCH: Record<string, string> = {
   ranger: 'linear-gradient(135deg, #5A6A42, #2B3322)',
   peasant: 'linear-gradient(135deg, #8A6B4A, #4A3826)',
+  light: 'linear-gradient(135deg, #6E7B8C, #333B47)',
+  heavy: 'linear-gradient(135deg, #7A6A55, #3A322A)',
+  wizard: 'linear-gradient(135deg, #5C4A7A, #2C2340)',
 }
 
 export default function PartsPanel() {

@@ -1,9 +1,13 @@
 export type Sex = 'male' | 'female' | 'any'
 export type SlotGroup = 'head' | 'outfit'
+/** 骨架体系：quaternius 65 骨小写命名；justcreate 62 骨 Mixamo 命名 */
+export type Rig = 'quaternius' | 'justcreate'
 
 export interface Manifest {
   version: number
   skeleton: { rootBone: string; expectedBones: number }
+  /** 各骨架体系配置；缺省视为 quaternius（兼容旧 manifest） */
+  skeletons?: Partial<Record<Rig, { rootBone: string; expectedBones: number }>>
   bases: BaseModel[]
   slots: Slot[]
   parts: Part[]
@@ -16,6 +20,7 @@ export interface BaseModel {
   sex: Exclude<Sex, 'any'>
   label: string
   url: string
+  rig?: Rig
 }
 
 export interface Slot {
@@ -41,6 +46,7 @@ export interface Part {
   label: string
   sex: Sex
   url: string
+  rig?: Rig
   variants: Variant[]
 }
 
