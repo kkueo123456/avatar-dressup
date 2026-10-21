@@ -70,6 +70,11 @@ function splitTrackName(trackName: string): { bone: string; property: string } |
 /**
  * 把 Quaternius 命名的剪辑改写成 JustCreate 命名。
  * 返回新剪辑（不改原剪辑，剪辑缓存可能被两个体系共用）。
+ *
+ * 只保留 quaternion 轨道：Quaternius 动画里的 position/scale 是它自己骨架的
+ * 绝对数值（米尺度）；JustCreate 骨骼挂在 Armature(×100) 下的 0.01 尺度空间里，
+ * 直接套用会把人物甩出视野（表现为"切体型后人没了"）。骨骼平移保持
+ * JustCreate 自己的 rest pose——这也是跨骨架重定向的通行做法。
  */
 export function retargetClipToJustCreate(clip: AnimationClip): AnimationClip {
   const tracks: KeyframeTrack[] = []
@@ -81,6 +86,7 @@ export function retargetClipToJustCreate(clip: AnimationClip): AnimationClip {
     }
     const mapped = QUATERNIUS_TO_JUSTCREATE[parts.bone]
     if (!mapped) continue
+    if (parts.property !== 'quaternion') continue
     tracks.push(track.clone())
     tracks[tracks.length - 1].name = `${mapped}.${parts.property}`
   }

@@ -71,7 +71,6 @@ describe('retargetClipToJustCreate', () => {
     const retargeted = retargetClipToJustCreate(source)
     expect(retargeted.tracks.map((t) => t.name)).toEqual([
       'LeftArm.quaternion',
-      'Hips.position',
     ])
     // 原剪辑保持不变
     expect(source.tracks.map((t) => t.name)).toEqual([
@@ -80,5 +79,16 @@ describe('retargetClipToJustCreate', () => {
       'root.quaternion',
       'index_04_leaf_l.quaternion',
     ])
+  })
+
+  it('丢弃 position/scale 轨道：Quaternius 的米尺度平移套到 0.01 尺度的 JustCreate 骨骼会把人物甩出视野', () => {
+    const times = [0, 1]
+    const source = new AnimationClip('run', 1, [
+      new QuaternionKeyframeTrack('Head.quaternion', times, [0, 0, 0, 1, 0, 0, 0, 1]),
+      new VectorKeyframeTrack('pelvis.position', times, [0, 0.9, 0, 0, 0.95, 0]),
+      new VectorKeyframeTrack('upperarm_l.scale', times, [1, 1, 1, 1, 1, 1]),
+    ])
+    const retargeted = retargetClipToJustCreate(source)
+    expect(retargeted.tracks.map((t) => t.name)).toEqual(['Head.quaternion'])
   })
 })
