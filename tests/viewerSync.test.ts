@@ -53,7 +53,7 @@ describe('createViewerSync', () => {
   it('启动时设置底模、播放待机动画', async () => {
     const { viewer, sync } = setup()
     await sync.idle()
-    expect(viewer.calls).toEqual(['base:female_regular', 'anim:idle'])
+    expect(viewer.calls).toEqual(['base:male_regular', 'anim:idle'])
   })
 
   it('装一件服装后四件都装上；卸下后调用 unequip', async () => {
@@ -91,13 +91,13 @@ describe('createViewerSync', () => {
   it('换底模后重新装回仍匹配的部件', async () => {
     const { m, store, viewer, sync } = setup()
     await sync.idle()
-    store.getState().equip(part(m, 'hair_f'))
+    store.getState().equip(part(m, 'hair_m'))
     store.getState().equip(part(m, 'ranger_body'))
     await sync.idle()
-    store.getState().setBase(m.bases[1])
+    store.getState().setBase(m.bases[0])
     await sync.idle()
-    expect(viewer.base).toBe('male_regular')
-    expect(viewer.equipped.has('hair_f')).toBe(false)
+    expect(viewer.base).toBe('female_regular')
+    expect(viewer.equipped.has('hair_m')).toBe(false)
     expect(viewer.equipped.has('ranger_body')).toBe(true)
     expect(viewer.calls.filter((c) => c === 'anim:idle')).toHaveLength(2)
   })

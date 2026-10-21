@@ -6,6 +6,7 @@ import type { Preset } from '@/types/manifest'
 import {
   selectBase, selectCurrentPreset, selectEquippedCount, selectEquippedIds, selectPartsInActiveSlot, selectVisibleSlots,
 } from '@/state/avatarStore'
+import { presetFitsBase } from '@/avatar/slotRules'
 import { useDressUp } from './DressUpContext'
 import PartCard from './PartCard'
 import SlotIcon from './SlotIcon'
@@ -49,27 +50,33 @@ export default function PartsPanel() {
 
   return (
     <aside className={styles.panel} aria-label="部件面板">
+      <div className={styles.scrollArea}>
       <div className={styles.section}>
         <div className={styles.sectionHead}>
           <h2 className={`font-display ${styles.sectionTitle}`}>一键套装</h2>
           <span className={styles.sectionHint}>装上一件会自动补齐整套</span>
         </div>
         <div className={styles.presetGrid}>
-          {manifest.presets.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={`${styles.presetCard} ${currentPreset?.id === p.id ? styles.presetCardActive : ''}`}
-              onClick={() => store.getState().applyPreset(p)}
-            >
-              <span aria-hidden="true" className={styles.presetSwatch} style={{ background: PRESET_SWATCH[p.id] ?? 'linear-gradient(135deg, #4A4458, #2A2634)' }} />
-              <span>
-                <span className={styles.presetName}>{p.label}</span>
-                <br />
-                <span className={styles.presetMeta}>{presetMeta(p)}</span>
-              </span>
-            </button>
-          ))}
+          {manifest.presets.map((p) => {
+            const disabled = !presetFitsBase(manifest, p, base)
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className={`${styles.presetCard} ${currentPreset?.id === p.id ? styles.presetCardActive : ''} ${disabled ? styles.presetCardDisabled : ''}`}
+                disabled={disabled}
+                title={disabled ? '当前底模没有这套服装' : undefined}
+                onClick={() => store.getState().applyPreset(p)}
+              >
+                <span aria-hidden="true" className={styles.presetSwatch} style={{ background: PRESET_SWATCH[p.id] ?? 'linear-gradient(135deg, #4A4458, #2A2634)' }} />
+                <span>
+                  <span className={styles.presetName}>{p.label}</span>
+                  <br />
+                  <span className={styles.presetMeta}>{presetMeta(p)}</span>
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -116,6 +123,7 @@ export default function PartsPanel() {
             onClick={() => store.getState().toggle(p)}
           />
         ))}
+      </div>
       </div>
 
       <div className={styles.footer}>

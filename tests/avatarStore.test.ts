@@ -6,14 +6,14 @@ import {
 import { makeManifest, part } from './fixtures/manifest'
 
 describe('createAvatarStore', () => {
-  it('初始为第一个底模、全空、第一个槽位激活', () => {
+  it('初始为男性底模（男性优先）、全空、第一个槽位激活', () => {
     const m = makeManifest()
     const store = createAvatarStore(m)
     const s = store.getState()
-    expect(s.avatar.baseId).toBe('female_regular')
+    expect(s.avatar.baseId).toBe('male_regular')
     expect(s.activeSlot).toBe('hair')
-    expect(selectBase(m, s).id).toBe('female_regular')
-    expect(selectPartsInActiveSlot(m, s).map((p) => p.id)).toEqual(['hair_f'])
+    expect(selectBase(m, s).id).toBe('male_regular')
+    expect(selectPartsInActiveSlot(m, s).map((p) => p.id)).toEqual(['hair_m'])
     expect(selectVisibleSlots(m, s).map((x) => x.id)).toEqual(
       m.slots.map((x) => x.id).filter((id) => id !== 'eyebrows'),
     )

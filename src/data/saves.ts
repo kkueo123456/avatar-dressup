@@ -26,7 +26,9 @@ export function fromSaveRecord(
   manifest: Manifest,
 ): { state: AvatarState; skipped: string[] } {
   const skipped: string[] = []
-  const base = manifest.bases.find((b) => b.id === record.baseId) ?? manifest.bases[0]
+  const base = manifest.bases.find((b) => b.id === record.baseId)
+    ?? manifest.bases.find((b) => b.sex === 'male')
+    ?? manifest.bases[0]
   if (base.id !== record.baseId) skipped.push(record.baseId)
   const state = createEmptyState(manifest, base.id)
   for (const [slotId, ids] of Object.entries(record.parts)) {

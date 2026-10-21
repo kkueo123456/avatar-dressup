@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  applyPreset, changeBase, createEmptyState, equipPart, isOutfitEmpty, partsForSlot, unequipPart,
+  applyPreset, changeBase, createEmptyState, equipPart, isOutfitEmpty, partsForSlot, presetFitsBase, unequipPart,
 } from '@/avatar/slotRules'
+import type { Preset } from '@/types/manifest'
 import { makeManifest, part } from './fixtures/manifest'
 
 const m = makeManifest()
@@ -116,5 +117,28 @@ describe('partsForSlot', () => {
     expect(partsForSlot(m, 'hair', female).map((p) => p.id)).toEqual(['hair_f'])
     expect(partsForSlot(m, 'hair', male).map((p) => p.id)).toEqual(['hair_m'])
     expect(partsForSlot(m, 'body', male).map((p) => p.id)).toEqual(['ranger_body', 'peasant_body'])
+  })
+})
+
+describe('presetFitsBase', () => {
+  const m = makeManifest()
+  it('女性底模：游侠预设可用（有女款部件），仅男性套装置灰', () => {
+    const base = m.bases.find((b) => b.sex === 'female')
+    const ranger = m.presets.find((p) => p.id === 'ranger')!
+    expect(presetFitsBase(m, ranger, base)).toBe(true)
+  })
+  it('底模缺失视为可用（不加限制）', () => {
+    const ranger = m.presets.find((p) => p.id === 'ranger')!
+    expect(presetFitsBase(m, ranger, undefined)).toBe(true)
+  })
+  it('部件完全无解的套装置灰', () => {
+    const maleOnly: Preset = { id: 'menOnly', label: '仅男', parts: { body: 'ranger_body' } }
+    const femaleBase = m.bases.find((b) => b.sex === 'female')!
+    // ranger_body 若是男款且无女款替代 → false；构造一个只存在男款的套装来测
+    const manifestMaleOnly = {
+      ...m,
+      parts: m.parts.map((p) => (p.id === 'ranger_body' ? { ...p, sex: 'male' as const } : p)),
+    }
+    expect(presetFitsBase(manifestMaleOnly as typeof m, maleOnly, femaleBase)).toBe(false)
   })
 })

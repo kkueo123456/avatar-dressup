@@ -70,6 +70,28 @@ export function unequipPart(state: AvatarState, slotId: string, partId?: string)
 }
 
 /**
+ * 预设是否适配当前底模：预设引用的每个部件要么直接适配，
+ * 要么能在同套装、同槽位找到适配底模的替代（与 applyPreset 的替换逻辑一致）。
+ * 任一部件彻底无解则整套装置灰。
+ */
+export function presetFitsBase(
+  manifest: Pick<Manifest, 'parts'>,
+  preset: Preset,
+  base: BaseModel | undefined,
+): boolean {
+  for (const partId of Object.values(preset.parts)) {
+    const wanted = manifest.parts.find((x) => x.id === partId)
+    if (!wanted) continue
+    if (!base || partFitsBase(wanted, base)) continue
+    const alt = manifest.parts.find(
+      (x) => x.slot === wanted.slot && x.set === wanted.set && partFitsBase(x, base),
+    )
+    if (!alt) return false
+  }
+  return true
+}
+
+/**
  * 整套替换四个服装槽位。预设里记录的是某一性别的部件 id；
  * 若该部件不匹配当前底模，就换成同套、同槽位、匹配底模的那件（资源脚本保证男女各有一套）。
  */

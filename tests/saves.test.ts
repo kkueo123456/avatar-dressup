@@ -46,10 +46,10 @@ describe('toSaveRecord / fromSaveRecord', () => {
     expect('accessory' in state.equipped).toBe(false)
   })
 
-  it('底模不存在时退回第一个底模并报告', () => {
+  it('底模不存在时退回默认底模（男性优先）并报告', () => {
     const rec = { ...toSaveRecord(dressed(), 'x', '', 1), baseId: 'ghost' }
     const { state, skipped } = fromSaveRecord(rec, m)
-    expect(state.baseId).toBe('female_regular')
+    expect(state.baseId).toBe('male_regular')
     expect(skipped).toContain('ghost')
   })
 })
