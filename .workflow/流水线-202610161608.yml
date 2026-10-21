@@ -20,18 +20,14 @@ stages:
     - npm ci --registry=https://registry.npmmirror.com
     - npx prisma generate
     - npm run build
+    - "# Gitee artifacts 对目录型 path 会 flatten 目录结构（public/avatar/x → ./avatar/x），"
+    - "# 导致服务器解压后 public/ 与 .next/ 缺失、走兜底恢复旧文件。这里自己打 tar 保证结构，"
+    - "# artifact 只传单文件，绕开 flatten。"
+    - tar -czf bundle.tar.gz .next public prisma src/worker ecosystem.config.cjs package.json package-lock.json next.config.ts tsconfig.json
     artifacts:
     - name: BUILD_ARTIFACT
       path:
-      - .next/
-      - public/
-      - prisma/
-      - src/worker/
-      - ecosystem.config.cjs
-      - package.json
-      - package-lock.json
-      - next.config.ts
-      - tsconfig.json
+      - bundle.tar.gz
       type: .tar.gz
     caches:
     - "~/.npm"
@@ -60,19 +56,22 @@ stages:
       artifactVersion: latest
     script: |
       cd ~/avatar-dressup
-      # 备份 .env 和 public（产物里可能不包含它们）
+      # 备份 .env（产物里不包含它）
       cp .env /tmp/avatar-env.backup 2>/dev/null || true
-      cp -r public /tmp/avatar-public.backup 2>/dev/null || true
       # 清理旧构建产物（保留 node_modules 和源码）
-      rm -rf .next public prisma next.config.ts tsconfig.json package.json package-lock.json
-      # 解压构建产物
-      tar -xzf output.tar.gz 2>/dev/null || true
+      rm -rf .next public prisma next.config.ts tsconfig.json package.json package-lock.json bundle.tar.gz
+      # 解压构建产物：外层 output.tar.gz 是流水线包装，内层 bundle.tar.gz 才是保持目录结构的真正产物
+      if [ -f output.tar.gz ]; then
+        tar -xzf output.tar.gz 2>/dev/null || true
+      fi
+      if [ -f bundle.tar.gz ]; then
+        echo "解压内层 bundle.tar.gz..."
+        tar -xzf bundle.tar.gz
+      else
+        echo "错误：产物里没有 bundle.tar.gz" && exit 1
+      fi
       # 恢复 .env
       cp /tmp/avatar-env.backup .env 2>/dev/null || true
-      # 恢复 public（如果产物里没有，从备份或 git 恢复）
-      if [ ! -d "public" ]; then
-        cp -r /tmp/avatar-public.backup public 2>/dev/null || git checkout -- public/
-      fi
       # 安装依赖
       npm install --legacy-peer-deps
       # 生成 Prisma 客户端
@@ -81,8 +80,11 @@ stages:
       npx prisma db push --skip-generate
       # 同步服务器源码到最新提交（保证兜底构建用的是新代码；.env/node_modules 未被跟踪不受影响）
       git fetch https://gitee.com/pu_zi_jie/avatar-dressup.git main 2>/dev/null && git reset --hard FETCH_HEAD 2>/dev/null || true
-      # 兜底：如果 .next/ 不存在（产物传输失败），在服务器上构建
-      if [ ! -d ".next" ] || [ ! -f ".next/BUILD_ID" ]; then
+      # 校验产物完整性：public 与 .next 必须来自构建产物，缺失即报错（不再静默用旧文件兜底）
+      if [ ! -f "public/avatar/manifest.json" ]; then
+        echo "错误：解压后缺少 public/avatar/manifest.json，产物不完整" && exit 1
+      fi
+      if [ ! -f ".next/BUILD_ID" ]; then
         echo "缺少 .next/，在服务器上构建..."
         NODE_OPTIONS='--max-old-space-size=1536' npx next build
       fi
