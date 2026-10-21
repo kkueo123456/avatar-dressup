@@ -50,7 +50,7 @@ export default function PartsPanel() {
 
   return (
     <aside className={styles.panel} aria-label="部件面板">
-      <div className={styles.scrollArea}>
+      {/* 三个模块各自独立滚动：套装区（标题固定、卡片列表滚）、槽位 tabs（横向滚）、部件网格（标题固定、网格滚）；footer 固定 */}
       <div className={styles.section}>
         <div className={styles.sectionHead}>
           <h2 className={`font-display ${styles.sectionTitle}`}>一键套装</h2>
@@ -96,34 +96,34 @@ export default function PartsPanel() {
         ))}
       </div>
 
-      <div className={styles.gridHead}>
-        <span className={styles.gridTitle}>{slot?.label ?? ''}</span>
-        <span className={styles.sectionHint}>{hint}</span>
-      </div>
-
-      <div className={styles.grid}>
-        {slot && !slot.multiple && (
-          <button
-            type="button"
-            className={`${styles.part} ${slotEmpty ? styles.partSelected : ''}`}
-            onClick={() => store.getState().unequip(slot.id)}
-            aria-pressed={slotEmpty}
-          >
-            <span className={`${styles.thumb} ${styles.thumbNone}`} />
-            <span className={`${styles.partLabel} ${slotEmpty ? styles.partLabelSelected : ''}`}>无</span>
-          </button>
-        )}
-        {parts.map((p) => (
-          <PartCard
-            key={p.id}
-            part={p}
-            selected={equippedIds.includes(p.id)}
-            loading={loadingIds.has(p.id)}
-            error={errors.get(p.id)}
-            onClick={() => store.getState().toggle(p)}
-          />
-        ))}
-      </div>
+      <div className={styles.gridScroll}>
+        <div className={styles.gridHead}>
+          <span className={styles.gridTitle}>{slot?.label ?? ''}</span>
+          <span className={styles.sectionHint}>{hint}</span>
+        </div>
+        <div className={styles.grid}>
+          {slot && !slot.multiple && (
+            <button
+              type="button"
+              className={`${styles.part} ${slotEmpty ? styles.partSelected : ''}`}
+              onClick={() => store.getState().unequip(slot.id)}
+              aria-pressed={slotEmpty}
+            >
+              <span className={`${styles.thumb} ${styles.thumbNone}`} />
+              <span className={`${styles.partLabel} ${slotEmpty ? styles.partLabelSelected : ''}`}>无</span>
+            </button>
+          )}
+          {parts.map((p) => (
+            <PartCard
+              key={p.id}
+              part={p}
+              selected={equippedIds.includes(p.id)}
+              loading={loadingIds.has(p.id)}
+              error={errors.get(p.id)}
+              onClick={() => store.getState().toggle(p)}
+            />
+          ))}
+        </div>
       </div>
 
       <div className={styles.footer}>
