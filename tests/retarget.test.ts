@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { AnimationClip, QuaternionKeyframeTrack, VectorKeyframeTrack } from 'three'
+import {
+  AnimationClip, Bone, Group, type Object3D, QuaternionKeyframeTrack, VectorKeyframeTrack,
+} from 'three'
 import { QUATERNIUS_TO_JUSTCREATE, retargetClipToJustCreate } from '@/avatar/retarget'
 
 /** JustCreate 62 骨骨名清单（来自 sm_male_base_body.glb） */
@@ -55,7 +57,39 @@ describe('骨骼重定向映射表', () => {
   })
 })
 
-describe('retargetClipToJustCreate', () => {
+describe('retargetClipToJustCreate（烘焙式 delta 重定向）', () => {
+  /** 构造一个最小源（Quaternius）骨架：root → pelvis → spine_01 → Head */
+  function makeSourceScene(): Group {
+    const root = new Group()
+    const mk = (name: string, parent: Object3D) => {
+      const b = new Bone()
+      b.name = name
+      parent.add(b)
+      return b
+    }
+    const r = mk('root', root)
+    const pelvis = mk('pelvis', r)
+    const spine = mk('spine_01', pelvis)
+    mk('Head', spine)
+    return root
+  }
+
+  /** 构造一个最小目标（JustCreate）骨架：Armature → Hips → Spine → Head */
+  function makeTargetScene(): Group {
+    const root = new Group()
+    const mk = (name: string, parent: Object3D) => {
+      const b = new Bone()
+      b.name = name
+      parent.add(b)
+      return b
+    }
+    const arm = mk('Armature', root)
+    const hips = mk('Hips', arm)
+    const spine = mk('Spine', hips)
+    mk('Head', spine)
+    return root
+  }
+
   function makeClip(): AnimationClip {
     const times = [0, 1]
     return new AnimationClip('idle', 1, [
@@ -66,12 +100,14 @@ describe('retargetClipToJustCreate', () => {
     ])
   }
 
-  it('改写已映射骨名、丢弃无对应轨道、不修改原剪辑', () => {
+  it('烘焙后输出 JustCreate 命名的四元数轨道，且不修改原剪辑', () => {
     const source = makeClip()
-    const retargeted = retargetClipToJustCreate(source)
-    expect(retargeted.tracks.map((t) => t.name)).toEqual([
-      'LeftArm.quaternion',
-    ])
+    const retargeted = retargetClipToJustCreate(source, makeSourceScene(), makeTargetScene())
+
+    // 输出全部是 JustCreate 命名的 quaternion 轨道（pelvis→Hips、spine_01→Spine、Head→Head）
+    const names = retargeted.tracks.map((t) => t.name).sort()
+    expect(names).toEqual(['Head.quaternion', 'Hips.quaternion', 'Spine.quaternion'])
+
     // 原剪辑保持不变
     expect(source.tracks.map((t) => t.name)).toEqual([
       'upperarm_l.quaternion',
@@ -81,14 +117,36 @@ describe('retargetClipToJustCreate', () => {
     ])
   })
 
-  it('丢弃 position/scale 轨道：Quaternius 的米尺度平移套到 0.01 尺度的 JustCreate 骨骼会把人物甩出视野', () => {
+  it('两套骨架 rest 朝向相同时，静止姿态烘焙结果等于源 rest 四元数', () => {
+    // 源动画对 pelvis/spine/Head 均为单位四元数（无旋转）
+    const times = [0, 1]
+    const clip = new AnimationClip('idle', 1, [
+      new QuaternionKeyframeTrack('pelvis.quaternion', times, [0, 0, 0, 1, 0, 0, 0, 1]),
+      new QuaternionKeyframeTrack('spine_01.quaternion', times, [0, 0, 0, 1, 0, 0, 0, 1]),
+      new QuaternionKeyframeTrack('Head.quaternion', times, [0, 0, 0, 1, 0, 0, 0, 1]),
+    ])
+    const retargeted = retargetClipToJustCreate(clip, makeSourceScene(), makeTargetScene())
+    // 3 条轨道；由于两套 rest 朝向相同且源静止，所有采样帧都应是单位四元数
+    expect(retargeted.tracks).toHaveLength(3)
+    for (const t of retargeted.tracks) {
+      const vals = t.values as Float32Array
+      for (let i = 0; i < vals.length; i += 4) {
+        expect([vals[i], vals[i + 1], vals[i + 2], vals[i + 3]]).toEqual([0, 0, 0, 1])
+      }
+    }
+  })
+
+  it('丢弃 position/scale 轨道：Quaternius 米尺度平移套到 0.01 尺度会把人物甩出视野', () => {
     const times = [0, 1]
     const source = new AnimationClip('run', 1, [
       new QuaternionKeyframeTrack('Head.quaternion', times, [0, 0, 0, 1, 0, 0, 0, 1]),
       new VectorKeyframeTrack('pelvis.position', times, [0, 0.9, 0, 0, 0.95, 0]),
       new VectorKeyframeTrack('upperarm_l.scale', times, [1, 1, 1, 1, 1, 1]),
     ])
-    const retargeted = retargetClipToJustCreate(source)
-    expect(retargeted.tracks.map((t) => t.name)).toEqual(['Head.quaternion'])
+    const retargeted = retargetClipToJustCreate(source, makeSourceScene(), makeTargetScene())
+    // position/scale 轨道被丢弃；只保留四元数轨道（Head 及其祖先 Hips/Spine 链）
+    const names = retargeted.tracks.map((t) => t.name)
+    expect(names).toContain('Head.quaternion')
+    expect(names.every((n) => n.endsWith('.quaternion'))).toBe(true)
   })
 })

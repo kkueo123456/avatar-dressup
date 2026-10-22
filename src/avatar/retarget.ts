@@ -1,8 +1,24 @@
-import type { AnimationClip, KeyframeTrack } from 'three'
+import {
+  AnimationClip, type Bone, type Object3D, Quaternion, QuaternionKeyframeTrack,
+} from 'three'
 
 /**
  * 动画骨骼重定向：Quaternius 65 骨（小写下划线）→ JustCreate 62 骨（Mixamo 命名）。
- * 动画文件是 Quaternius 命名；给 JustCreate 底模播放前按此表改写轨道名。
+ *
+ * 问题背景：Quaternius 与 JustCreate 两套骨架的 rest pose 朝向不一致——不仅 `root`
+ * 骨带 (-0.707,0,0,0.707) 的世界旋转（Z-up→Y-up 修正），而且每一根骨的 rest 局部旋转
+ * 都不同。旧实现只改写轨道名、直接套源 quaternion，忽略了两者 rest 朝向差异，导致
+ * 播放动画后人物倒立。
+ *
+ * 因此这里改为**烘焙式层级序 delta 重定向**：沿骨链自根向下，把源骨动画四元数转成
+ * 相对其自身 rest 的"旋转增量"（delta），再叠加到目标骨 rest 朝向上，得到目标骨
+ * 每帧的局部四元数，烘焙成 QuaternionKeyframeTrack。
+ *
+ *   srcWorld   = srcParentWorld * qAnim            （源骨当前世界旋转）
+ *   delta      = srcWorld * srcRestWorld⁻¹          （相对源 rest 的旋转增量）
+ *   dstWorld   = delta * dstRestWorld               （叠加到目标 rest 朝向）
+ *   dstLocal   = dstParentWorld⁻¹ * dstWorld        （转回目标局部）
+ *
  * quaternius 的 root / *_04_leaf / ball_leaf 在 JustCreate 无对应，直接丢弃。
  */
 export const QUATERNIUS_TO_JUSTCREATE: Record<string, string> = {
@@ -60,6 +76,51 @@ export const QUATERNIUS_TO_JUSTCREATE: Record<string, string> = {
   ball_r: 'RightToeBase',
 }
 
+/** 反向映射：JustCreate 骨 → Quaternius 骨 */
+const JUSTCREATE_TO_QUATERNIUS: Record<string, string> = Object.fromEntries(
+  Object.entries(QUATERNIUS_TO_JUSTCREATE).map(([q, j]) => [j, q]),
+)
+
+/** 收集场景内所有 Bone（按名字索引），并缓存其 rest 世界四元数与父子关系 */
+interface BoneInfo {
+  bone: Bone
+  restWorld: Quaternion
+  children: BoneInfo[]
+}
+
+function collectBoneTree(root: Object3D): {
+  byName: Map<string, BoneInfo>
+  rootName: string | null
+} {
+  root.updateMatrixWorld(true)
+  const byName = new Map<string, BoneInfo>()
+  const wq = new Quaternion()
+  // 第一遍：建立 info 节点
+  root.traverse((o) => {
+    if ((o as Bone).isBone) {
+      const b = o as Bone
+      b.getWorldQuaternion(wq)
+      byName.set(b.name, { bone: b, restWorld: wq.clone(), children: [] })
+    }
+  })
+  // 第二遍：连接父子
+  let rootName: string | null = null
+  const walk = (o: Object3D): void => {
+    if ((o as Bone).isBone) {
+      const info = byName.get((o as Bone).name)!
+      for (const c of o.children) {
+        if ((c as Bone).isBone) info.children.push(byName.get((c as Bone).name)!)
+      }
+      // 记录顶层骨（无骨父的骨），作为递归起点
+      const hasBoneParent = o.parent && (o.parent as Bone).isBone
+      if (!hasBoneParent && rootName === null) rootName = (o as Bone).name
+    }
+    for (const c of o.children) walk(c)
+  }
+  root.traverse(walk)
+  return { byName, rootName }
+}
+
 /** 轨道名形如 "upperarm_l.quaternion"，拆出骨名与属性 */
 function splitTrackName(trackName: string): { bone: string; property: string } | null {
   const dot = trackName.indexOf('.')
@@ -67,31 +128,157 @@ function splitTrackName(trackName: string): { bone: string; property: string } |
   return { bone: trackName.slice(0, dot), property: trackName.slice(dot + 1) }
 }
 
+/** 对单条四元数轨道在 t 时刻采样（QuaternionKeyframeTrack，slerp 插值） */
+function sampleQuaternion(
+  track: QuaternionKeyframeTrack,
+  t: number,
+  out: Quaternion,
+): Quaternion {
+  const times = track.times as Float32Array
+  const values = track.values as Float32Array
+  let i = 0
+  while (i < times.length - 1 && times[i + 1] < t) i++
+  const t0 = times[i]
+  const t1 = times[Math.min(i + 1, times.length - 1)]
+  const a = new Quaternion(values[i * 4], values[i * 4 + 1], values[i * 4 + 2], values[i * 4 + 3])
+  if (t1 <= t0 || t <= t0) return out.copy(a)
+  const b = new Quaternion(
+    values[(i + 1) * 4],
+    values[(i + 1) * 4 + 1],
+    values[(i + 1) * 4 + 2],
+    values[(i + 1) * 4 + 3],
+  )
+  const alpha = Math.min(1, (t - t0) / (t1 - t0))
+  return out.copy(a.slerp(b, alpha))
+}
+
 /**
- * 把 Quaternius 命名的剪辑改写成 JustCreate 命名。
- * 返回新剪辑（不改原剪辑，剪辑缓存可能被两个体系共用）。
+ * 烘焙式 delta 重定向：把 Quaternius 动画剪辑烘焙成可直接给 JustCreate 底模播放的剪辑。
  *
- * 只保留 quaternion 轨道：Quaternius 动画里的 position/scale 是它自己骨架的
- * 绝对数值（米尺度）；JustCreate 骨骼挂在 Armature(×100) 下的 0.01 尺度空间里，
- * 直接套用会把人物甩出视野（表现为"切体型后人没了"）。骨骼平移保持
- * JustCreate 自己的 rest pose——这也是跨骨架重定向的通行做法。
+ * @param clip          源动画剪辑（Quaternius 命名）
+ * @param sourceScene   源动画文件的场景（含 Quaternius 骨架 rest pose）
+ * @param targetScene   目标底模场景（含 JustCreate 骨架 rest pose）
+ * @param fps           烘焙采样率（默认 30）
  */
-export function retargetClipToJustCreate(clip: AnimationClip): AnimationClip {
-  const tracks: KeyframeTrack[] = []
+export function retargetClipToJustCreate(
+  clip: AnimationClip,
+  sourceScene: Object3D,
+  targetScene: Object3D,
+  fps = 30,
+): AnimationClip {
+  const src = collectBoneTree(sourceScene)
+  const dst = collectBoneTree(targetScene)
+
+  // 源四元数轨道索引
+  const srcTrack = new Map<string, QuaternionKeyframeTrack>()
   for (const track of clip.tracks) {
     const parts = splitTrackName(track.name)
-    if (!parts) {
-      tracks.push(track)
-      continue
-    }
-    const mapped = QUATERNIUS_TO_JUSTCREATE[parts.bone]
-    if (!mapped) continue
-    if (parts.property !== 'quaternion') continue
-    tracks.push(track.clone())
-    tracks[tracks.length - 1].name = `${mapped}.${parts.property}`
+    if (!parts || parts.property !== 'quaternion') continue
+    if (!(track instanceof QuaternionKeyframeTrack)) continue
+    srcTrack.set(parts.bone, track)
   }
+
+  const duration = clip.duration
+  const frames = Math.max(2, Math.round(duration * fps) + 1)
+  const perBone = new Map<string, Float32Array>()
+  const order: string[] = []
+
+  // 源根骨（映射骨链顶端，通常 "pelvis"）的父世界 = 源 root 的 rest 世界旋转
+  const srcRootWorld = src.byName.get('root')?.restWorld ?? new Quaternion()
+  const identity = new Quaternion()
+
+  const tmpSrcWorld = new Quaternion()
+  const tmpDstWorld = new Quaternion()
+  const tmpLocal = new Quaternion()
+  const tmpQ = new Quaternion()
+
+  const bakeBoneRec = (
+    srcBoneName: string,
+    srcParentWorld: Quaternion,
+    dstParentWorld: Quaternion,
+    t: number,
+    out: Map<string, Quaternion>,
+  ): void => {
+    const srcInfo = src.byName.get(srcBoneName)
+    if (!srcInfo) return
+    const targetName = QUATERNIUS_TO_JUSTCREATE[srcBoneName]
+    if (!targetName) return
+    const dstInfo = dst.byName.get(targetName)
+    if (!dstInfo) return
+
+    const qAnim = srcTrack.has(srcBoneName)
+      ? sampleQuaternion(srcTrack.get(srcBoneName)!, t, tmpQ)
+      : srcInfo.bone.quaternion
+
+    // srcWorld = srcParentWorld * qAnim
+    const srcWorld = tmpSrcWorld.copy(srcParentWorld).multiply(qAnim)
+    // delta = srcWorld * srcRestWorld⁻¹
+    const delta = new Quaternion().copy(srcWorld).multiply(srcInfo.restWorld.clone().invert())
+    // dstWorld = delta * dstRestWorld
+    const dstWorld = tmpDstWorld.copy(delta).multiply(dstInfo.restWorld)
+    // dstLocal = dstParentWorld⁻¹ * dstWorld
+    const local = tmpLocal.copy(dstParentWorld).invert().multiply(dstWorld)
+    out.set(targetName, local.clone())
+
+    // 递归子骨
+    for (const child of srcInfo.children) {
+      if (child.bone.name && QUATERNIUS_TO_JUSTCREATE[child.bone.name]) {
+        bakeBoneRec(child.bone.name, srcWorld, dstWorld, t, out)
+      }
+    }
+  }
+
+  const srcPelvis = src.byName.get('pelvis')
+  if (!srcPelvis) {
+    // 没有 pelvis 骨架信息则退化为旧的"只改名"行为，避免崩溃
+    return legacyRenameClip(clip)
+  }
+
+  for (let f = 0; f < frames; f++) {
+    const t = Math.min(duration - 1e-4, (f / (frames - 1)) * duration)
+    const locals = new Map<string, Quaternion>()
+    bakeBoneRec('pelvis', srcRootWorld, identity, t, locals)
+    for (const [bone, q] of locals) {
+      let arr = perBone.get(bone)
+      if (!arr) {
+        arr = new Float32Array(frames * 4)
+        perBone.set(bone, arr)
+        order.push(bone)
+      }
+      arr.set([q.x, q.y, q.z, q.w], f * 4)
+    }
+  }
+
+  const times = new Float32Array(frames)
+  for (let f = 0; f < frames; f++) times[f] = (f / (frames - 1)) * duration
+  const tracks = order.map(
+    (bone) => new QuaternionKeyframeTrack(`${bone}.quaternion`, times, perBone.get(bone)!),
+  )
   const retargeted = clip.clone()
   retargeted.tracks = tracks
   retargeted.name = `${clip.name}__jc`
   return retargeted
 }
+
+/** 旧版"只改写轨道名"的实现，作为无骨架信息时的兜底 */
+function legacyRenameClip(clip: AnimationClip): AnimationClip {
+  const tracks = clip.tracks
+    .filter((track) => {
+      const parts = splitTrackName(track.name)
+      if (!parts) return true
+      const mapped = QUATERNIUS_TO_JUSTCREATE[parts.bone]
+      return !!mapped && parts.property === 'quaternion'
+    })
+    .map((track) => {
+      const parts = splitTrackName(track.name)!
+      const clone = track.clone()
+      clone.name = `${QUATERNIUS_TO_JUSTCREATE[parts.bone]}.${parts.property}`
+      return clone
+    })
+  const retargeted = clip.clone()
+  retargeted.tracks = tracks
+  retargeted.name = `${clip.name}__jc`
+  return retargeted
+}
+
+export { JUSTCREATE_TO_QUATERNIUS }

@@ -144,8 +144,12 @@ export class AvatarRig {
       AnimationClip.findByName(gltf.animations, anim.clip) ?? gltf.animations[0]
     if (!clip) throw new Error(`动画文件 ${anim.url} 没有剪辑`)
     mixer.stopAllAction()
-    // 动画是 Quaternius 命名；JustCreate 底模需要改写轨道骨名
-    const finalClip = this.rig === 'justcreate' ? retargetClipToJustCreate(clip) : clip
+    // 动画是 Quaternius 命名；JustCreate 底模需要烘焙式 delta 重定向
+    // （需源动画骨架 rest 与目标底模骨架 rest，才能抵消两套 rest 朝向差异，避免倒立）
+    const finalClip =
+      this.rig === 'justcreate' && this.baseScene
+        ? retargetClipToJustCreate(clip, gltf.scene, this.baseScene)
+        : clip
     const action = mixer.clipAction(finalClip)
     action.setLoop(LoopRepeat, Infinity)
     action.play()
