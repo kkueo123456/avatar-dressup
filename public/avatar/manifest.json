@@ -34,14 +34,28 @@
       "sex": "female",
       "label": "女性·新体型",
       "url": "models/base/sm_female_base_body.glb",
-      "rig": "justcreate"
+      "rig": "justcreate",
+      "initialParts": {
+        "face": "sm_female_face_01",
+        "hair": "sm_female_hair_01",
+        "arms": "sm_female_base_arms",
+        "legs": "sm_female_base_legs",
+        "feet": "sm_female_base_boots"
+      }
     },
     {
       "id": "sm_male_base_body",
       "sex": "male",
       "label": "男性·新体型",
       "url": "models/base/sm_male_base_body.glb",
-      "rig": "justcreate"
+      "rig": "justcreate",
+      "initialParts": {
+        "face": "sm_male_face_01",
+        "hair": "sm_male_hair_01",
+        "arms": "sm_male_base_arms",
+        "legs": "sm_male_base_legs",
+        "feet": "sm_male_base_boots"
+      }
     }
   ],
   "slots": [

@@ -21,6 +21,8 @@ export interface BaseModel {
   label: string
   url: string
   rig?: Rig
+  /** 该底模的初始装备（slotId -> partId）；拆分式底模（如 JustCreate）裸模不完整，需靠它拼出完整人体 */
+  initialParts?: Record<string, string>
 }
 
 export interface Slot {

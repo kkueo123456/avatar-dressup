@@ -32,7 +32,7 @@ export function createAvatarStore(manifest: Manifest): AvatarStore {
       set({ avatar: rules.equipPart(get().avatar, part, manifest) })
     },
     unequip(slotId, partId) {
-      set({ avatar: rules.unequipPart(get().avatar, slotId, partId) })
+      set({ avatar: rules.unequipPart(get().avatar, slotId, partId, manifest) })
     },
     toggle(part) {
       const slot = manifest.slots.find((s) => s.id === part.slot)

@@ -14,9 +14,12 @@
 //
 // 输出：assets-src/justcreate/glb/ 下，每个部位一个 .glb。
 
-import { NodeIO } from '../node_modules/.pnpm/@gltf-transform+core@4.5.1/node_modules/@gltf-transform/core/dist/index.js'
-import { ALL_EXTENSIONS } from '../node_modules/.pnpm/@gltf-transform+extensions@4.5.1/node_modules/@gltf-transform/extensions/dist/index.js'
-import { cloneDocument, prune } from '../node_modules/.pnpm/@gltf-transform+functions@4.5.1_@types+node@26.6.5/node_modules/@gltf-transform/functions/dist/index.js'
+// 注意：必须用包名导入（走 pnpm 解析），不能相对路径直进 .pnpm 目录——
+// 那会让 NodeIO 与 functions 内部引用两个不同的 core 实例，cloneDocument
+// 的 instanceof 判断失效，克隆出空索引（meshes/nodes 全 0）。
+import { NodeIO } from '@gltf-transform/core'
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
+import { cloneDocument, prune } from '@gltf-transform/functions'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -86,16 +89,25 @@ async function exportOne(srcDoc, meshName, outPath, sex) {
   const targetMesh = root.listMeshes().find((m) => m.getName() === meshName)
   if (!targetMesh) throw new Error(`找不到 mesh ${meshName}`)
 
-  // 只断开场景里非目标节点的 mesh 引用；由 prune 清理孤儿资源。
-  // 千万不要 mesh.dispose()：dispose 会级联释放 mesh 引用的共享资源
-  // （蒙皮 accessor/bufferView），破坏 62 骨蒙皮数据——产物表现为
-  // 人物缩成 0.56m 并悬空 1 米（蒙皮矩阵错乱），线上"切体型人没了"的根因之一。
+  // 显式删除所有非目标 mesh（prune 不会删 Root 直接持有的 mesh 资源）。
+  // 注：cloneDocument 后每个 mesh 的蒙皮 accessor 各自独立，dispose 非目标
+  // mesh 不会影响目标 mesh——曾误判"dispose 破坏蒙皮"，实际单件产物
+  // （躯干悬空 y≈1.05-1.60m）本就是正确的人体位置。
+  for (const mesh of [...root.listMeshes()]) {
+    if (mesh.getName() !== meshName) mesh.dispose()
+  }
+
+  // 清空场景树里除目标外的所有 mesh 节点引用。
+  // RootNode 是场景唯一孩子，部件 mesh 节点在它之下——仅遍历场景直接
+  // 孩子会空转（f63a822 的教训），必须递归全树。
   const scene = root.getDefaultScene() ?? root.listScenes()[0]
   if (scene) {
-    for (const node of [...scene.listChildren()]) {
-      const mm = node.getMesh()
-      if (mm && mm.getName() !== meshName) node.setMesh(null)
+    const detachOthers = (n) => {
+      const mm = n.getMesh()
+      if (mm && mm.getName() !== meshName) n.setMesh(null)
+      for (const c of [...n.listChildren()]) detachOthers(c)
     }
+    for (const node of [...scene.listChildren()]) detachOthers(node)
   }
 
   // prune 清理空节点与未引用资源

@@ -37,6 +37,9 @@ export function fromSaveRecord(
       skipped.push(...ids)
       continue
     }
+    // 记录里该槽有内容 → 以记录为准（清掉初始装再装）；为空则保留初始装，
+    // 修复旧存档在拆分式底模上"空装备=无头无四肢"的坏状态
+    if (ids.length) target.length = 0
     for (const id of ids) {
       const p = manifest.parts.find((x) => x.id === id && x.slot === slotId)
       if (p) target.push(id)

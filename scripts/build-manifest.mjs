@@ -92,8 +92,18 @@ async function main() {
     return
   }
 
-  await rm(OUT, { recursive: true, force: true })
+  // 增量清理：只删不在本次产物清单里的旧文件（rm 整目录会触发批量删除保护，
+  // 且会误删仍在产物集内的文件再重写）。文件名稳定，正常重跑只会覆盖写入。
   await mkdir(OUT, { recursive: true })
+  const keep = new Set([
+    ...cls.bases.map((b) => b.url),
+    ...cls.parts.map((p) => p.url),
+    ...cls.animations.map((a) => a.url),
+    'manifest.json',
+  ])
+  for (const rel of await fg(['**/*'], { cwd: OUT, onlyFiles: true })) {
+    if (!keep.has(rel.replace(/\\/g, '/'))) await rm(path.join(OUT, rel), { force: true })
+  }
   const warnings = []
 
   const rigOf = (entry) => entry.rig ?? 'quaternius'

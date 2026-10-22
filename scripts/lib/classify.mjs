@@ -68,9 +68,15 @@ export function classifyFiles(files, rules, opts = {}) {
     }
     const slug = slugify(baseName(rel))
     if (rule.kind === 'base') {
+      const sex = detectSex(rel)
       out.bases.push({
-        id: slug, sex: detectSex(rel), label: nameLabels[slug] ?? labelFromFile(rel), src: rel,
+        id: slug, sex, label: nameLabels[slug] ?? labelFromFile(rel), src: rel,
         url: `models/base/${slug}.glb`, rig: detectRig(rel),
+        // JustCreate 底模只是躯干，初始装拼出完整人体：base 四肢 + 默认脸/发型
+        ...(detectRig(rel) === 'justcreate' ? { initialParts: {
+          face: `sm_${sex}_face_01`, hair: `sm_${sex}_hair_01`,
+          arms: `sm_${sex}_base_arms`, legs: `sm_${sex}_base_legs`, feet: `sm_${sex}_base_boots`,
+        } } : {}),
       })
     } else if (rule.kind === 'animation') {
       out.animations.push({ id: slug, label: labelFromFile(rel), src: rel, url: `anim/${slug}.glb`, clip: '' })

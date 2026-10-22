@@ -9,7 +9,27 @@ export interface AvatarState {
 export function createEmptyState(manifest: Manifest, baseId: string): AvatarState {
   const equipped: Record<string, string[]> = {}
   for (const s of manifest.slots) equipped[s.id] = []
-  return { baseId, equipped }
+  return applyInitialParts({ baseId, equipped }, manifest)
+}
+
+/**
+ * 给状态套上底模的初始装备：只填仍为空的槽位，已有部件不覆盖。
+ * 拆分式底模（如 JustCreate）的裸模只是躯干，必须补上 base 系列四肢与
+ * 脸/发型才呈现完整人体；整模底模（Quaternius fullbody）无 initialParts，行为不变。
+ */
+export function applyInitialParts(state: AvatarState, manifest: Manifest): AvatarState {
+  const base = manifest.bases.find((b) => b.id === state.baseId)
+  if (!base?.initialParts) return state
+  const equipped = { ...state.equipped }
+  let changed = false
+  for (const [slotId, partId] of Object.entries(base.initialParts)) {
+    if (equipped[slotId]?.length) continue
+    const p = manifest.parts.find((x) => x.id === partId)
+    if (!p || p.slot !== slotId || !partFitsBase(p, base)) continue
+    equipped[slotId] = [partId]
+    changed = true
+  }
+  return changed ? { ...state, equipped } : state
 }
 
 export function partFitsBase(part: Part, base: BaseModel): boolean {
@@ -36,13 +56,21 @@ function baseOf(state: AvatarState, manifest: Manifest): BaseModel | undefined {
   return manifest.bases.find((b) => b.id === state.baseId)
 }
 
+/** 槽位是否视为"裸"：空，或只装着底模的初始装部件（初始装是人体的组成部分，不算服装） */
+function isBareSlot(equipped: Record<string, string[]>, base: BaseModel | undefined, slotId: string): boolean {
+  const ids = equipped[slotId] ?? []
+  if (!ids.length) return true
+  const initId = base?.initialParts?.[slotId]
+  return initId !== undefined && ids.length === 1 && ids[0] === initId
+}
+
 export function fillOutfitFromSet(state: AvatarState, part: Part, manifest: Manifest): AvatarState {
   if (!part.set) return state
   const base = baseOf(state, manifest)
   const equipped = { ...state.equipped }
   for (const slot of manifest.slots) {
     if (!slot.outfit || slot.id === part.slot) continue
-    if ((equipped[slot.id] ?? []).length) continue
+    if (!isBareSlot(equipped, base, slot.id)) continue
     const match = manifest.parts.find(
       (p) => p.slot === slot.id && p.set === part.set && (!base || partFitsBase(p, base)),
     )
@@ -53,7 +81,11 @@ export function fillOutfitFromSet(state: AvatarState, part: Part, manifest: Mani
 
 export function equipPart(state: AvatarState, part: Part, manifest: Manifest): AvatarState {
   const slot = slotOf(manifest, part.slot)
-  const wasOutfitEmpty = isOutfitEmpty(state, manifest.slots)
+  const base = baseOf(state, manifest)
+  // 初始装视为裸体：穿着初始装时穿第一件服装，仍触发整套补全（与整模底模行为一致）
+  const wasOutfitEmpty = manifest.slots
+    .filter((s) => s.outfit)
+    .every((s) => isBareSlot(state.equipped, base, s.id))
   const current = state.equipped[slot.id] ?? []
   const nextList = slot.multiple
     ? current.includes(part.id) ? current : [...current, part.id]
@@ -63,10 +95,21 @@ export function equipPart(state: AvatarState, part: Part, manifest: Manifest): A
   return next
 }
 
-export function unequipPart(state: AvatarState, slotId: string, partId?: string): AvatarState {
+/** 卸下部件；拆分式底模上槽位被卸空时自动穿回初始装（否则人物会缺肢体），整模底模行为不变 */
+export function unequipPart(
+  state: AvatarState,
+  slotId: string,
+  partId?: string,
+  manifest?: Manifest,
+): AvatarState {
   const current = state.equipped[slotId] ?? []
   const nextList = partId === undefined ? [] : current.filter((id) => id !== partId)
-  return { ...state, equipped: { ...state.equipped, [slotId]: nextList } }
+  if (nextList.length || !manifest) {
+    return { ...state, equipped: { ...state.equipped, [slotId]: nextList } }
+  }
+  // 槽位空了：若该槽有初始装则穿回（applyInitialParts 只填空槽，天然幂等）
+  const partially = { ...state, equipped: { ...state.equipped, [slotId]: [] } }
+  return applyInitialParts(partially, manifest)
 }
 
 /**
@@ -108,7 +151,8 @@ export function applyPreset(state: AvatarState, preset: Preset, manifest: Manife
       : manifest.parts.find((x) => x.slot === slotId && x.set === wanted.set && partFitsBase(x, base))
     if (p) equipped[slotId] = [p.id]
   }
-  return { ...next, equipped }
+  // 预设未覆盖的服装槽（理论上少见）恢复初始装，保证拆分式底模肢体完整
+  return applyInitialParts({ ...next, equipped }, manifest)
 }
 
 export function changeBase(
@@ -127,5 +171,6 @@ export function changeBase(
       return false
     })
   }
-  return { state: { baseId: base.id, equipped }, removed }
+  // 新底模是拆分式（如 JustCreate）时，空槽位自动补初始装，保证人物完整
+  return { state: applyInitialParts({ baseId: base.id, equipped }, manifest), removed }
 }

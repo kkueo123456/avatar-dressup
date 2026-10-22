@@ -21,7 +21,7 @@
 - [第九章：ORM 与 Prisma](#第九章orm-与-prisma)
 - [第十章：Redis 缓存](#第十章redis-缓存)
 - [第十一章：主从复制、运维与权限](#第十一章主从复制运维与权限)
-- [第十二章：面试题库（45 题）](#第十二章面试题库45-题)
+- [第十二章：面试题库（49 题）](#第十二章面试题库49-题)
 - [第十三章：实战练习](#第十三章实战练习)
 - [附录 A：术语表](#附录-a术语表)
 - [附录 B：报错速查表](#附录-b报错速查表)
@@ -83,7 +83,7 @@ mysql> SELECT VERSION();   -- 看到 8.0.x 就 OK
 ## 0.4 两个阅读约定
 
 1. **代码块里 `--` 开头的行是 SQL 注释**，不是要执行的内容
-2. 文档示例统一用"头像换装应用"的业务（users / avatars / poster_jobs 三张表），你可以把 SQL 直接抄到自己的练习库里跑（先按第三章的建表语句建表）
+2. 文档示例统一用"头像换装应用"的业务（users / avatars / poster_jobs 三张表）。**先按 2.0 节把示例数据集建好**，之后第二章所有 SQL 都能直接抄进 mysql 里跑，并得到和文档一模一样的结果
 
 ---
 
@@ -269,6 +269,55 @@ InnoDB 引擎（通过 B+ 树索引找到数据页，读写内存/磁盘）
 >
 > 面试 90% 考 DML，DCL 见第十一章。
 
+## 2.0 本章示例数据集（先建好它，所有示例都基于这份数据）
+
+学 SQL 最有效的方式是**边读边跑**。本章每条示例 SQL 都附了它跑出来的真实结果（MySQL 客户端原样输出），而结果全部基于下面这份小数据集——照着建完表、插完数据，你就能逐条复现文档里的每个结果。
+
+```sql
+-- ① 建练习表（users 的完整 DDL 见 2.1，avatars 的建表语句在练习 1 / 3.4 节）
+CREATE TABLE poster_jobs (
+  id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name       VARCHAR(100) NOT NULL,
+  status     VARCHAR(20) NOT NULL DEFAULT 'pending',
+  style      VARCHAR(20) NOT NULL DEFAULT 'anime',
+  cover_url  VARCHAR(255),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_poster_status CHECK (status IN ('pending','running','failed','done'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- CHECK 约束：status 只许这四个值，插别的（如 'sleeping'）直接报错——3.4 节用它演示约束拦截
+
+-- ② 给 avatars 补一个"封面图"列（第 2 章示例会用到）
+ALTER TABLE avatars ADD COLUMN cover_url VARCHAR(255);
+
+-- ③ 插入示例数据（注意 id 会按插入顺序自增成 1、2、3...）
+INSERT INTO users (username, password_hash, created_at) VALUES
+  ('xiaoming',  'hash-a', '2026-01-01 10:00:00'),   -- id = 1
+  ('xiaohong',  'hash-b', '2026-01-02 12:30:00'),   -- id = 2
+  ('xiaozhang', 'hash-c', '2026-03-15 09:15:00');   -- id = 3
+
+INSERT INTO avatars (user_id, name, base_id, parts, cover_url, created_at) VALUES
+  (1, '阳光少年',   'base1', '{"hat":["hat-red"]}', '/c/1.png', '2026-01-05 18:20:00'),  -- id=1
+  (1, '夜行者',     'base1', '{}',                   NULL,       '2026-02-10 21:00:00'),  -- id=2
+  (1, '运动系',     'base2', '{}',                   '/c/3.png', '2026-03-01 08:40:00'),  -- id=3
+  (2, '小红的春天', 'base2', '{}',                   '/c/4.png', '2026-03-20 14:10:00'),  -- id=4
+  (3, '初音风',     'base1', '{}',                   NULL,       '2026-04-11 20:30:00');  -- id=5
+
+INSERT INTO poster_jobs (name, status, style, cover_url, created_at) VALUES
+  ('小明的新年海报', 'done',    'anime',     '/p/1.png', '2026-01-15 11:00:00'),
+  ('夜色专辑封面',   'failed',  'realistic', NULL,       '2026-02-20 16:45:00'),
+  ('春日限定',       'done',    'realistic', '/p/3.png', '2026-03-05 09:30:00'),
+  ('运动海报',       'running', 'anime',     NULL,       '2026-04-01 19:20:00'),
+  ('国风水墨',       'pending', 'anime',     NULL,       '2026-05-02 10:10:00');
+```
+
+**这份长什么样（心里有数，后面查起来不慌）**：
+
+- `users`：3 个用户（小明 1 号、小红 2 号、小张 3 号）
+- `avatars`：5 个头像——小明 3 个、小红 1 个、小张 1 个；有 2 个封面图是 NULL（给 IS NULL 示例用）
+- `poster_jobs`：5 个海报任务——状态 pending/running/failed/done 都有（给 IN、DISTINCT、CASE WHEN 用），风格 anime/realistic 都有
+
+> 💡 **说明**：文档里的"运行结果"都用 MySQL 命令行的真实输出格式（`+---+----+` 那种表格边框），列宽和真实客户端略有出入，但数据一致。如果你在自己库上跑出的结果和文档不同，先检查示例数据是不是原样插入了。
+
 ## 2.1 DDL：定义表结构
 
 ### CREATE TABLE 逐行精讲
@@ -297,6 +346,48 @@ CREATE TABLE users (
 - **`created_at DATETIME DEFAULT CURRENT_TIMESTAMP`**：创建时间，默认当前时刻。`CURRENT_TIMESTAMP` 是数据库的时间，不是你服务器的时间——相信数据库，它的时钟最准。
 - **`ENGINE=InnoDB`**：指定存储引擎（见 1.5，无脑 InnoDB）
 - **`CHARSET=utf8mb4`**：字符集（见 3.1，永远 utf8mb4）
+
+### 约束四兄弟（PRIMARY / UNIQUE / NOT NULL / DEFAULT）
+
+上面建表语句里藏着四类约束，新手容易当成“摆设”，其实它们是**数据库帮你把的第一道门**（约束全家福详见 3.4，这里先建立直觉）：
+
+```sql
+-- 体验：同一份建表语句，插脏数据会怎样？
+mysql> INSERT INTO users (username) VALUES ('xiaoming');
+ERROR 1364 (HY000): Field 'password_hash' doesn't have a default value
+-- password_hash 是 NOT NULL 且没默认值 → 不传就拦下
+
+mysql> INSERT INTO users (username, password_hash) VALUES ('xiaoming', 'hash-x');
+ERROR 1062 (23000): Duplicate entry 'xiaoming' for key 'users.username'
+-- username 有 UNIQUE 约束 → 重复值被拦下
+```
+
+| 约束 | 拦什么 | 类比 |
+|------|--------|------|
+| `NOT NULL` | 不传必填列 | 表单的 required |
+| `UNIQUE` | 重复值 | 用户名重复注册 |
+| `DEFAULT` | 不传时兜底 | props 的 default 值 |
+| `PRIMARY KEY` | 唯一 + 非空（= UNIQUE + NOT NULL 的合体） | 行的身份证 |
+
+**怎么查看一张表上有哪些约束**：
+
+```sql
+SHOW CREATE TABLE users\G    -- 看整张表怎么建的（含全部约束，最常用）
+
+-- 只看外键（CONSTRAINT 名以 fk_ 开头的那些）
+SELECT * FROM information_schema.KEY_COLUMN_USAGE
+WHERE TABLE_NAME = 'avatars' AND REFERENCED_TABLE_NAME IS NOT NULL;
+```
+
+> 💡 约束在 **SHOW CREATE TABLE 的输出里才看得全**——因为很多约束（如自增列上的隐式索引）在日常 DESC 里看不到。养成习惯：改表结构前先 `SHOW CREATE TABLE`。
+
+### 自增列的三个冷知识
+
+1. **不保证连续**：事务回滚、删除行、实例重启（8.0 前）都会让 id 出现空洞。**业务上别把自增 id 当“第几条记录”用**，要顺序号自己维护计数列。
+2. **可以手动指定**：`INSERT INTO users (id, username, password_hash) VALUES (10, 'xiaowang', 'hash-e');` 完全合法——指定后 AUTO_INCREMENT 计数器会跳到 11。利用这一点可以“预留 id”（见 2.3 的 ON DUPLICATE KEY UPDATE 示例，就是指定 id 触发冲突再更新）。
+3. **可以设初始值**：`ALTER TABLE users AUTO_INCREMENT = 1000;` → 下一个 id 从 1000 起（比如让订单号看起来“像个正经系统的单号”）。
+
+> 自增的并发安全由 `innodb_autoinc_lock_mode` 控制，8.0 默认值 2（interleaved，性能最好）。知道有这回事即可，面试一般不深挖。
 
 ### ALTER / DROP 详解
 
@@ -329,6 +420,32 @@ DROP TABLE users;
 SELECT * FROM users;                          -- 查全部（* 表示所有列）
 SELECT id, username FROM users;               -- 只查两列（推荐写法）
 SELECT DISTINCT status FROM poster_jobs;      -- 去重，看这张表有哪些状态值
+```
+
+**运行结果**（对照 2.0 的数据集，你跑出来应该一模一样）：
+
+```sql
+mysql> SELECT id, username FROM users;
++----+-----------+
+| id | username  |
++----+-----------+
+|  1 | xiaoming  |
+|  2 | xiaohong  |
+|  3 | xiaozhang |
++----+-----------+
+3 rows in set (0.00 sec)
+
+mysql> SELECT DISTINCT status FROM poster_jobs;
++---------+
+| status  |
++---------+
+| done    |
+| failed  |
+| running |
+| pending |
++---------+
+4 rows in set (0.00 sec)
+-- 5 行数据只有 4 种状态（done 出现了两次，被去重了）
 ```
 
 **为什么要少用 `SELECT *`**：① 传输浪费——前端只要 2 列你传 20 列；② 索引失效——查询所有列就没法用"覆盖索引"优化（第 4 章）；③ 代码脆弱——表加列后，依赖列顺序的代码会悄悄出 Bug。**练完第 4 章你会回来感谢这条建议的。**
@@ -371,6 +488,40 @@ WHERE username LIKE '%aom%'    -- 中间包含
 
 **大小写敏感的坑（MySQL 特有）**：默认排序规则 utf8mb4_xxx_ci 里的 `ci` = case insensitive，所以 `WHERE username = 'XIAOMING'` 能匹配 `xiaoming`！PG 默认是区分的。想要区分大小写：改列的 collation 为 `_bin` 或 `_cs`，或用 `WHERE BINARY username = 'x'`。
 
+**跑几个例子找感觉**（数据见 2.0）：
+
+```sql
+mysql> SELECT id, name, cover_url FROM avatars WHERE cover_url IS NULL;
++----+-----------+-----------+
+| id | name      | cover_url |
++----+-----------+-----------+
+|  2 | 夜行者    | NULL      |
+|  5 | 初音风    | NULL      |
++----+-----------+-----------+
+2 rows in set (0.00 sec)
+
+mysql> SELECT id, name, status, style FROM poster_jobs
+    -> WHERE status = 'done' AND (style = 'anime' OR style = 'realistic');
++----+-----------------------+--------+-----------+
+| id | name                  | status | style     |
++----+-----------------------+--------+-----------+
+|  1 | 小明的新年海报        | done   | anime     |
+|  3 | 春日限定              | done   | realistic |
++----+-----------------------+--------+-----------+
+2 rows in set (0.00 sec)
+
+mysql> SELECT id, name FROM users WHERE username LIKE 'xiao%';
++----+-----------+
+| id | username  |
++----+-----------+
+|  1 | xiaoming  |
+|  2 | xiaohong  |
+|  3 | xiaozhang |
++----+-----------+
+3 rows in set (0.00 sec)
+-- xiao 开头，三个都命中。换 '%hong' 只会命中 xiaohong（但索引失效，见第 4 章）
+```
+
 ```sql
 -- ⑤ 空值判断（初学者第一大坑！）
 WHERE cover_url IS NULL       -- ✅ 正确
@@ -407,6 +558,31 @@ SELECT * FROM avatars ORDER BY created_at DESC LIMIT 20, 10;
 
 **OFFSET 的坑**（第 8 章深讲）：`OFFSET 100000` 意味着数据库要**先扫出前 10 万条再扔掉**。数据量大的表翻到后面页会越来越慢——这就是"深分页问题"，解法是游标分页或延迟关联（第 8 章）。
 
+**运行结果**（先排序分页各来一个）：
+
+```sql
+mysql> SELECT id, name, created_at FROM avatars
+    -> ORDER BY created_at DESC LIMIT 2;
++----+-----------------+---------------------+
+| id | name            | created_at          |
++----+-----------------+---------------------+
+|  5 | 初音风          | 2026-04-11 20:30:00 |
+|  4 | 小红的春天      | 2026-03-20 14:10:00 |
++----+-----------------+---------------------+
+2 rows in set (0.00 sec)
+-- 按时间倒序取前 2：最新的两个头像
+
+mysql> SELECT id, name FROM avatars ORDER BY created_at DESC LIMIT 2, 2;
++----+--------------+
+| id | name         |
++----+--------------+
+|  3 | 运动系       |
+|  2 | 夜行者       |
++----+--------------+
+2 rows in set (0.00 sec)
+-- LIMIT 2,2 = 跳过最新 2 条（id 5、4），再取 2 条（id 3、2）
+```
+
 **前端对接分页的完整例子**：
 ```sql
 -- 前端传页码 page=3、每页 10 条，后端换算：
@@ -426,6 +602,30 @@ SELECT COUNT(*) FROM users;                    -- 总用户数：一个数字
 SELECT user_id, COUNT(*) AS avatar_count
 FROM avatars
 GROUP BY user_id;
+```
+
+**运行结果**：
+
+```sql
+mysql> SELECT COUNT(*) FROM users;
++----------+
+| COUNT(*) |
++----------+
+|        3 |
++----------+
+1 row in set (0.00 sec)
+-- 注意：聚合结果永远只有一行——把 3 行压成 1 个数字
+
+mysql> SELECT user_id, COUNT(*) AS avatar_count FROM avatars GROUP BY user_id;
++---------+--------------+
+| user_id | avatar_count |
++---------+--------------+
+|       1 |            3 |
+|       2 |            1 |
+|       3 |            1 |
++---------+--------------+
+3 rows in set (0.00 sec)
+-- 5 个头像按 user_id 归成 3 堆：小明的 3 个、小红 1 个、小张 1 个
 ```
 
 **GROUP BY 怎么理解**：`GROUP BY user_id` 把相同 user_id 的行归成一堆，然后**每堆输出一行**。`COUNT(*)` 数的是每堆的行数。类似：
@@ -454,7 +654,21 @@ SELECT user_id, COUNT(*) FROM avatars GROUP BY user_id;
 SELECT user_id, COUNT(*) AS cnt
 FROM avatars
 GROUP BY user_id
-HAVING COUNT(*) > 5;        -- 只要头像数 > 5 的用户
+HAVING COUNT(*) >= 2;      -- 只要头像数 >= 2 的用户（数据集里只有小明有 3 个）
+```
+
+**运行结果**：
+
+```sql
+mysql> SELECT user_id, COUNT(*) AS cnt FROM avatars
+    -> GROUP BY user_id HAVING COUNT(*) >= 2;
++---------+-----+
+| user_id | cnt |
++---------+-----+
+|       1 |   3 |
++---------+-----+
+1 row in set (0.00 sec)
+-- 分组出 3 组，HAVING 只留下了头像数 >= 2 的那一组（小明）
 ```
 
 **WHERE 和 HAVING 的区别**（高频面试题）：
@@ -515,6 +729,44 @@ LEFT JOIN avatars a ON a.user_id = u.id
 GROUP BY u.username;
 ```
 
+**运行结果**：
+
+```sql
+mysql> SELECT u.username, COUNT(a.id) AS avatar_count
+    -> FROM users u LEFT JOIN avatars a ON a.user_id = u.id
+    -> GROUP BY u.username;
++-----------+--------------+
+| username  | avatar_count |
++-----------+--------------+
+| xiaohong  |            1 |
+| xiaoming  |            3 |
+| xiaozhang |            1 |
++-----------+--------------+
+3 rows in set (0.00 sec)
+```
+
+再看**没聚合的裸 LEFT JOIN**，直观感受"右表没匹配补 NULL"：
+
+```sql
+mysql> SELECT u.username, a.name AS avatar_name
+    -> FROM users u LEFT JOIN avatars a ON a.user_id = u.id;
++-----------+-----------------+
+| username  | avatar_name     |
++-----------+-----------------+
+| xiaoming  | 阳光少年        |
+| xiaoming  | 夜行者          |
+| xiaoming  | 运动系          |
+| xiaohong  | 小红的春天      |
+| xiaozhang | 初音风          |
++-----------+-----------------+
+5 rows in set (0.00 sec)
+-- 左表 3 个用户全保留；小明的 1 行被"复制"成 3 行（1 对多展开）
+-- 如果小张没有头像，他那行的 avatar_name 会是 NULL —— 这就是 LEFT JOIN 的语义
+
+-- 对照：INNER JOIN 只留两边都匹配的（效果同上，因为本例 3 个用户都有头像；
+-- 若删掉小张的头像，INNER JOIN 的结果里就没有 xiaozhang 了）
+```
+
 逐个拆解：
 - `FROM users u`：主表是 users（u 是别名，后面写 u.id 比 users.id 省事）
 - `LEFT JOIN avatars a ON a.user_id = u.id`：把 avatars 表"贴"到 users 上，匹配条件是 `a.user_id = u.id`。LEFT 意味着 users 的每一行都保留——没头像的用户，贴上来的 a 列全是 NULL
@@ -547,6 +799,27 @@ WHERE id IN (
 2. 中间层：对这堆数字求平均（一个数字）
 3. 外层：找出头像数大于这个平均值的用户
 
+**运行结果**：
+
+```sql
+mysql> SELECT username FROM users
+    -> WHERE id IN (
+    ->   SELECT user_id FROM avatars
+    ->   GROUP BY user_id
+    ->   HAVING COUNT(*) > (SELECT AVG(cnt) FROM (
+    ->     SELECT COUNT(*) AS cnt FROM avatars GROUP BY user_id
+    ->   ) t)
+    -> );
++----------+
+| username |
++----------+
+| xiaoming |
++----------+
+1 row in set (0.00 sec)
+-- 推理验证：每人的头像数是 3、1、1 → 平均 (3+1+1)/3 ≈ 1.67 → 只有 3 > 1.67 → 小明
+-- 手算一遍再跑 SQL，结果对上了，子查询就真懂了
+```
+
 **什么时候用子查询 vs JOIN**：逻辑简单（IN 一个列表）时子查询可读性好；复杂关联时 JOIN 通常性能更好（优化器处理 JOIN 的手段更多）。初学阶段优先写对，再追求写快。
 
 ### UNION：合并两个查询结果
@@ -559,6 +832,29 @@ SELECT id, name FROM avatars;
 ```
 
 **注意**：UNION 两个查询的**列数和对应列类型必须一致**（列名可以不同，取第一个查询的）。去重要额外排序比较，**确定没有重复时就用 UNION ALL 省性能**。
+
+**运行结果**：
+
+```sql
+mysql> SELECT id, username AS name FROM users
+    -> UNION ALL
+    -> SELECT id, name FROM avatars;
++----+-----------------+
+| id | name            |
++----+-----------------+
+|  1 | xiaoming        |
+|  2 | xiaohong        |
+|  3 | xiaozhang       |
+|  1 | 阳光少年        |
+|  2 | 夜行者          |
+|  3 | 运动系          |
+|  4 | 小红的春天      |
+|  5 | 初音风          |
++----+-----------------+
+8 rows in set (0.00 sec)
+-- 上半是 users 的 3 行，下半是 avatars 的 5 行，直接连起来
+-- 列名取第一个查询的（name）。UNION ALL 保留所有行；改用 UNION 会去掉完全相同的行
+```
 
 ### CASE WHEN：SQL 里的 if-else
 
@@ -574,6 +870,29 @@ FROM poster_jobs;
 ```
 
 **前端价值**：状态映射这种事，写在前端要每个页面重复一份，写在 SQL 里一次搞定。CASE WHEN 还能做**行转列**（把"按天分行的统计"变成"一行 12 个月"），是报表 SQL 的核心技巧。
+
+**运行结果**：
+
+```sql
+mysql> SELECT name,
+    ->   CASE
+    ->     WHEN status = 'done' THEN '已完成'
+    ->     WHEN status = 'running' THEN '进行中'
+    ->     ELSE '其他'
+    ->   END AS status_text
+    -> FROM poster_jobs;
++-----------------------+-------------+
+| name                  | status_text |
++-----------------------+-------------+
+| 小明的新年海报        | 已完成      |
+| 夜色专辑封面          | 其他        |        ← failed，走 ELSE
+| 春日限定              | 已完成      |
+| 运动海报              | 进行中      |
+| 国风水墨              | 其他        |        ← pending，走 ELSE
++-----------------------+-------------+
+5 rows in set (0.00 sec)
+-- 前端拿到 status_text 直接渲染，不用再写映射函数
+```
 
 ### 常用函数速查（MySQL 版）
 
@@ -624,6 +943,41 @@ ON DUPLICATE KEY UPDATE username = VALUES(username);
 
 **列名列表的意义**：`INSERT INTO users (username, password_hash)` 明确只提供这两列，其他列走默认值。**永远显式写列名**——不写的话数据库按列顺序填，表结构一变（中间加了列）你的代码就悄悄错位了。
 
+**运行结果**（注意三种语句的"回显"长什么样——写代码时要用它判断影响了几行）：
+
+```sql
+mysql> INSERT INTO users (username, password_hash) VALUES ('xiaoliu', 'hash-d');
+Query OK, 1 row affected (0.01 sec)
+-- 插入成功：1 row affected
+
+mysql> SELECT LAST_INSERT_ID();
++------------------+
+| LAST_INSERT_ID() |
++------------------+
+|                4 |
++------------------+
+1 row in set (0.00 sec)
+-- 前面已有 3 个用户，新插入的自增 id = 4
+
+mysql> INSERT INTO users (username) VALUES ('xiaoming');
+ERROR 1364 (HY000): Field 'password_hash' doesn't have a default value
+-- ❌ 没传 NOT NULL 的列，直接被数据库拦下——这就是约束在守门
+
+mysql> UPDATE avatars SET name = CONCAT(name, '-副本') WHERE id = 1;
+Query OK, 1 row affected (0.01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+-- matched 是匹配到的行数，changed 是实际修改的行数（值没变时 changed 可为 0）
+
+mysql> SELECT id, name FROM avatars WHERE id = 1;
++----+--------------------+
+| id | name               |
++----+--------------------+
+|  1 | 阳光少年-副本      |
++----+--------------------+
+1 row in set (0.00 sec)
+-- UPDATE 后查一下确认效果（也是 2.3 结尾那条铁律的演习）
+```
+
 ### UPDATE 详解
 
 ```sql
@@ -665,11 +1019,30 @@ DELETE FROM avatars;   -- 手一抖，全没了（逐行删+记日志，慢但�
 -- 第 1 步：用同样的 WHERE 跑 SELECT，确认影响范围
 SELECT * FROM poster_jobs
 WHERE status = 'failed' AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
--- 看一眼：哦，12 条，都是该删的
+-- 看一眼：哦，1 条，是该删的
 
 -- 第 2 步：确认无误，改成 DELETE 再执行
 DELETE FROM poster_jobs
 WHERE status = 'failed' AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
+-- Query OK, 1 row affected (0.01 sec)  ← 影响行数和 SELECT 看到的一致，安心
+```
+
+**两步的运行结果**（假设现在是 2026 年 10 月，"夜色专辑封面"是 2026-02-20 的 failed 任务，早超 30 天）：
+
+```sql
+mysql> SELECT id, name, status, created_at FROM poster_jobs
+    -> WHERE status = 'failed' AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
++----+--------------------+--------+---------------------+
+| id | name               | status | created_at          |
++----+--------------------+--------+---------------------+
+|  2 | 夜色专辑封面       | failed | 2026-02-20 16:45:00 |
++----+--------------------+--------+---------------------+
+1 row in set (0.00 sec)
+
+mysql> DELETE FROM poster_jobs
+    -> WHERE status = 'failed' AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
+Query OK, 1 row affected (0.01 sec)
+-- DELETE 的回显 1 row affected 和 SELECT 看到的 1 行一致 → 没删错东西
 ```
 
 这不是仪式感，是无数删库事故换来的规矩。生产环境删数据前，最好再用事务包裹：`BEGIN` → `DELETE` → `SELECT` 检查 → 确认 `COMMIT` / 后悔了 `ROLLBACK`（第 5 章细讲）。
@@ -778,19 +1151,27 @@ MySQL 面试必问"自增还是 UUID"，答"看场景 + 知道取舍"：
 
 ## 3.4 约束详解
 
-约束（Constraint）= 数据库帮你守门。**能在约束层挡住的脏数据，就不要靠应用代码判断**——应用代码可能有 10 个入口，约束只有一道闸，漏不掉。
+约束（Constraint）= 数据库帮你守门。**能在约束层挡住的脏数据，就不要靠应用代码判断**——应用代码可能有 10 个入口（网页注册、App、管理后台、脚本导入……），约束只有一道闸，漏不掉。
+
+> "内建约束"这个词拆开看：**内建** = 不用你写代码，数据库**原生自带**这套检查机制；**约束** = 数据必须满足的规则。你只管在建表时声明规则，脏数据一来数据库自动报错拒绝——这是数据库和应用代码的本质分工。
+
+### 一张表看全六种约束
+
+> 下面这份是**教学增强版**建表语句：比练习 1 的 avatars 多了两个约束（⑤ UNIQUE 和 ⑥ CHECK），专门用来演示"六种约束长什么样、违反时报什么错"。跟练 2.0 数据集用练习 1 的基础版即可；想亲手撞一撞 ⑤⑥ 的报错，就用这份重建。
 
 ```sql
 CREATE TABLE avatars (
-  id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  user_id    BIGINT UNSIGNED NOT NULL,
+  id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,   -- ① 主键
+  user_id    BIGINT UNSIGNED NOT NULL,                     -- ② 非空
   name       VARCHAR(100) NOT NULL,
-  base_id    VARCHAR(50) NOT NULL DEFAULT 'base1',
+  base_id    VARCHAR(50) NOT NULL DEFAULT 'base1',         -- ③ 默认值
   parts      JSON,
   status     VARCHAR(20) NOT NULL DEFAULT 'pending',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_avatars_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_avatars_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,  -- ④ 外键
+  CONSTRAINT uq_avatars_name UNIQUE (name),                -- ⑤ 唯一（也可写作列内联 UNIQUE）
+  CONSTRAINT ck_avatars_status CHECK (status IN ('pending','running','failed','done')),     -- ⑥ CHECK
   KEY idx_user_created (user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
@@ -806,17 +1187,172 @@ CREATE TABLE avatars (
 | `FOREIGN KEY` | 引用的值必须存在 | 悬空引用 → 报错 |
 | `CHECK`（8.0.16+ 才真正生效） | 自定义规则 | `CHECK (price >= 0)`：负价格 → 报错 |
 
-**两个 MySQL 特有的好东西**：
-- `ON UPDATE CURRENT_TIMESTAMP`：行被更新时自动刷新 updated_at（不用写触发器）
-- `KEY idx_xxx (col)`：建表语句里直接建索引，顺手
+**每个约束违反时的真实报错**（用 2.0 数据集就能复现，建议亲手撞一次）：
 
-**外键的三种行为**（面试常问，"删用户时他的头像怎么办"）：
+```sql
+mysql> INSERT INTO users (username, password_hash) VALUES ('xiaoming', 'hash-x');
+ERROR 1062 (23000): Duplicate entry 'xiaoming' for key 'users.username'
+-- UNIQUE 拦截：重复用户名
 
-- `CASCADE`：删父删子——删用户 → 自动删掉他所有头像。适合头像这种"完全从属于用户"的数据
-- `SET NULL`：删父后子的外键置空——要求列允许 NULL。适合"参考关系"数据（文章删除，评论的 article_id 置空保留评论）
-- `RESTRICT`（默认）：有子数据时**拒绝删父**——还有头像的用户不许删。最安全，逼你显式处理
+mysql> INSERT INTO avatars (user_id, name) VALUES (999, '孤儿头像');
+ERROR 1452 (23000): Cannot add or update a child row: a foreign key constraint fails
+(`demo`.`avatars`, CONSTRAINT `fk_avatars_user` FOREIGN KEY (`user_id`) REFERENCES
+`users` (`id`) ON DELETE CASCADE)
+-- FOREIGN KEY 拦截：999 号用户不存在（users 只有 1、2、3）
 
-**互联网公司的实际做法**（加分认知）：很多大厂**不在生产库建外键**（用应用层保证 + 定时对账），因为外键的每次检查都有开销、级联操作不可控、也不利于分库分表。初学阶段建议练习时用外键培养"数据完整性"意识，知道生产为什么常常不用。
+mysql> INSERT INTO poster_jobs (name, status) VALUES ('测试', 'sleeping');
+ERROR 3819 (HY000): Check constraint 'ck_poster_status' is violated.
+-- CHECK 拦截：status 只允许四个值（2.0 数据集的 poster_jobs 就带这个约束，可直接复现）
+
+mysql> INSERT INTO users (username) VALUES ('xiaohei');
+ERROR 1364 (HY000): Field 'password_hash' doesn't have a default value
+-- NOT NULL 拦截：必填列不传值
+```
+
+> 💡 **报错里的门道**：错误码是查问题的钥匙——1062（重复）、1452（外键）、3819（CHECK）、1364（NOT NULL）。把附录 B 报错速查表里的码记个脸熟，出问题直接对号入座。
+
+### 外键逐字拆解（新手重点）
+
+外键那句 DDL 信息量很大，逐段拆开：
+
+```
+CONSTRAINT  fk_avatars_user  FOREIGN KEY (user_id)  REFERENCES  users(id)  ON DELETE CASCADE
+└──约束名───┘└── 自己起的名 ──┘└──本表的哪个列──┘    └──引用──┘ └──谁的哪列─┘ └──删除时怎么办──┘
+```
+
+- **`CONSTRAINT fk_avatars_user`**：给这个约束起名。不写 CONSTRAINT 子句数据库也会自动生成（如 `avatars_ibfk_1`），但自动名没含义、报错时难定位——**永远显式命名**，格式推荐 `fk_子表_父表`
+- **`FOREIGN KEY (user_id)`**：声明"avatars 表的 user_id 列是外键"
+- **`REFERENCES users(id)`**：它的值必须来自 users 表的 id 列。两个隐藏要求：
+  - **被引用列必须有索引**——users.id 是主键天然有；引用非主键列时得先给那列建索引，否则建外键报错
+  - **类型必须完全一致**——user_id 是 `BIGINT UNSIGNED`，users.id 也必须是 `BIGINT UNSIGNED`，连 UNSIGNED 都要对齐，差一点建表就失败
+- **`ON DELETE CASCADE`**：删除父行时怎么处理子行（三种行为见下）
+
+**为什么需要外键（真实场景）**：没有外键时，`INSERT INTO avatars (user_id, name) VALUES (999, '孤儿头像')` 会**成功**——库里从此多了一个"不属于任何用户"的头像，列表页 JOIN users 时它永远消失（LEFT JOIN 才捞得回来）。头像还好说，如果是订单引用了不存在的商品，就是对账灾难。**外键就是防"悬空引用"的。**
+
+**给现有表补外键**（开发中更常见——表先建好，关系后来加）：
+
+```sql
+-- 前提：类型一致 + 被引用列有索引（主键天然有）
+ALTER TABLE avatars
+  ADD CONSTRAINT fk_avatars_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+```
+
+### 外键的三种删除行为（面试常问，"删用户时他的头像怎么办"）
+
+设个背景：users 里 id=1 是小明；avatars 里 user_id=1 的头像有 3 个。同样一条 `DELETE FROM users WHERE id = 1;`，三种行为下结果完全不同：
+
+**① CASCADE（级联删除）：删父连带删子**
+
+```sql
+-- 建表时 ... ON DELETE CASCADE
+mysql> DELETE FROM users WHERE id = 1;
+Query OK, 1 row affected (0.01 sec)
+
+mysql> SELECT COUNT(*) FROM avatars WHERE user_id = 1;
++----------+
+| COUNT(*) |
++----------+
+|        0 |
++----------+
+1 row in set (0.00 sec)
+-- 小明的 3 个头像被自动删掉，一条不剩
+```
+
+适合头像这种"完全从属于用户"的数据——主人没了，留着也无意义。
+
+**② SET NULL（置空保留）：删父留子，引用置空**
+
+```sql
+-- 建表时 ... ON DELETE SET NULL（要求 user_id 允许 NULL，即建表时不写 NOT NULL）
+mysql> DELETE FROM users WHERE id = 1;
+Query OK, 1 row affected (0.01 sec)
+
+mysql> SELECT id, name, user_id FROM avatars;
++----+--------------+---------+
+| id | name         | user_id |
++----+--------------+---------+
+|  1 | 阳光少年     |    NULL |
+|  2 | 夜行者       |    NULL |
+|  3 | 运动系       |    NULL |
++----+--------------+---------+
+3 rows in set (0.00 sec)
+-- 头像还在，但 user_id 被置成 NULL——"主人没了，头像成为无主之物"
+```
+
+适合"参考关系"数据：文章删除，评论的 article_id 置空保留评论（转 archived 状态）。
+
+**③ RESTRICT / NO ACTION（拒绝删除，默认）：有孩子在就不许删父**
+
+```sql
+-- 建表时不写 ON DELETE（默认就是 RESTRICT）
+mysql> DELETE FROM users WHERE id = 1;
+ERROR 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails
+(`demo`.`avatars`, CONSTRAINT `fk_avatars_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`))
+-- 数据库说：他名下还有 3 个头像，想删他？先处理孩子
+```
+
+最安全，逼你显式决定（先删头像再删用户，或改用软删除）。
+
+> 还有个兄弟 `ON UPDATE CASCADE`：父行 id 变了，子的引用自动跟着变。生产中主键一般不动，知道即可。
+
+**三种行为怎么选（决策口诀）**：
+
+| 数据关系 | 推荐行为 | 例子 |
+|---------|---------|------|
+| 完全从属（子是父的一部分） | CASCADE | 用户 → 他的头像 |
+| 弱参考（子可独立存在） | SET NULL | 文章 → 引用它的评论 |
+| 强制人工决策 | RESTRICT | 部门 → 在职员工 |
+
+**互联网公司的实际做法**（加分认知）：很多大厂**不在生产库建外键**（用应用层保证 + 定时对账），因为外键的每次检查都有开销、级联操作不可控（一条 DELETE 可能引发雪崩式级联）、也不利于分库分表（外键不能跨库）。初学阶段建议练习时用外键培养"数据完整性"意识，知道生产为什么常常不用。
+
+### 约束 vs 索引（新手最容易混的一对）
+
+它们像但不是一回事，一张表分清：
+
+| | 约束（Constraint） | 索引（Index） |
+|---|---|---|
+| 职责 | 保证数据**合法**（不重复、不悬空） | 加速**查询** |
+| 类比 | 门禁规则 | 大楼的导览图 |
+| PRIMARY KEY / UNIQUE | 是约束 | 底层靠唯一索引实现检查 |
+| FOREIGN KEY | 是约束 | InnoDB 会自动给外键列建普通索引（没有就建） |
+| CHECK / NOT NULL | 是约束 | 和索引没关系 |
+
+**精确定位**：`PRIMARY KEY` 和 `UNIQUE` 是"约束 + 索引"合体——声明约束时数据库自动建了唯一索引，查重靠扫索引（所以 UNIQUE 列查重快）。`CHECK`、`NOT NULL` 是纯约束，和索引无关。普通索引 `KEY idx_xxx` 只是索引，不是约束。
+
+### 约束检查的时机（什么时候拦你）
+
+约束不是"事后对账"，而是**写操作发生的瞬间就检查**：
+
+```
+INSERT/UPDATE 执行
+  ↓
+1. NOT NULL / DEFAULT        → 先看值齐不齐、缺的补默认值
+  ↓
+2. CHECK                    → 值满不满足自定义规则
+  ↓
+3. PRIMARY KEY / UNIQUE     → 会不会重复（查唯一索引）
+  ↓
+4. FOREIGN KEY              → 引用的父行存在吗（查父表）
+  ↓
+全过 → 写入成功；任何一步失败 → 整条语句报错，数据不落库
+```
+
+这也是约束和"应用层校验"的本质区别：应用层"先查后插"从校验到写库之间有**时间窗口**——两个请求同时通过校验再先后写库，重复值就溜进去了（经典竞态条件）；约束是写入瞬间的原子检查，**并发下也漏不掉**。重名检测这种事，UNIQUE 约束比应用代码更可靠。
+
+> ⚠️ **唯一例外——导入数据时可临时关外键**：`SET foreign_key_checks = 0;` 暂停外键检查（常用于批量导入/恢复备份：先导子表再导父表时避免顺序报错）。**导完必须立刻 `SET foreign_key_checks = 1;` 恢复**。注意它只关外键，NOT NULL/UNIQUE 照常拦截。
+
+### 删除/查看约束
+
+```sql
+-- 删外键（注意删的是约束名，不是列）
+ALTER TABLE avatars DROP FOREIGN KEY fk_avatars_user;
+
+-- 删唯一约束 = 删它底下的唯一索引（名字一样）
+ALTER TABLE avatars DROP INDEX uq_avatars_name;
+
+-- 查看表上的全部约束
+SHOW CREATE TABLE avatars\G
+```
 
 ## 3.5 范式与反范式
 
@@ -1168,6 +1704,32 @@ ALTER TABLE avatars ADD INDEX idx_user_created (user_id, created_at);
 -- WHERE 和 ORDER BY 都被索引消化了（最左前缀的排序优势，见 4.3）
 ```
 
+**EXPLAIN 输出长什么样**（在 2.0 的示例数据上真实跑一遍）：
+
+```sql
+mysql> EXPLAIN SELECT * FROM avatars WHERE user_id = 1;
++----+-------------+----------+------------+------+---------------------+---------------------+---------+-------+------+----------+-------+
+| id | select_type | table    | partitions | type | possible_keys       | key                 | key_len | ref   | rows | filtered | Extra |
++----+-------------+----------+------------+------+---------------------+---------------------+---------+-------+------+----------+-------+
+|  1 | SIMPLE      | avatars  | NULL       | ref  | idx_user_created    | idx_user_created    | 9       | const |    3 |   100.00 | NULL  |
++----+-------------+----------+------------+------+---------------------+---------------------+---------+-------+------+----------+-------+
+1 row in set, 1 warning (0.00 sec)
+-- 逐列读：type=ref（走了索引等值查 ✅）、key=idx_user_created（用的就是这个索引）、
+-- rows=3（预计扫 3 行——正好是小明的 3 个头像）
+
+-- 对照：查一个没索引的列
+mysql> EXPLAIN SELECT * FROM avatars WHERE name = '夜行者';
++----+-------------+----------+------------+------+---------------+------+---------+------+------+----------+-------------+
+| id | select_type | table    | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+----------+------------+------+---------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | avatars  | NULL       | ALL  | NULL          | NULL | NULL    | NULL |    5 |    10.00 | Using where |
++----+-------------+----------+------------+------+---------------+------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+-- type=ALL（全表扫描 🚨）、key=NULL（没用任何索引）——给 name 建索引就能救回来
+```
+
+> 💡 小数据集上 rows 只有 5（表里就 5 行），全表扫描反而更快，所以本例只是**练习读输出**；生产上百万行的表里，`type=ALL, rows=1000000` 才是真正的警报。这也是 4.4 节"数据区分度/数据量影响优化器决策"的直观体现。
+
 ## 4.6 MySQL 特色索引技巧
 
 **① 前缀索引**：对长字符串列（如 URL、邮箱），只索引前 N 个字符，大幅省空间：
@@ -1185,7 +1747,29 @@ CREATE INDEX idx_email ON users(email(10));   -- 只索引前 10 个字符
 
 效果：回表次数大减。EXPLAIN 的 Extra 显示 `Using index condition` 就是它在工作。
 
-**③ 索引的代价（什么时候不该建）**：
+**③ 虚拟列 + 索引（JSON 列的检索方案）**：
+
+JSON 列有个天然缺陷：**整个 JSON 一起存，没法直接对里面的字段建索引**。查"戴红帽子的头像"只能全表扫描。解法是**生成列（Generated Column）**——从 JSON 里挖一个字段出来当普通列：
+
+```sql
+-- 建一个虚拟生成列（不占存储，读时现算）并给它建索引
+ALTER TABLE avatars
+  ADD COLUMN hat VARCHAR(50)
+    GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(parts, '$.hat[0]'))) VIRTUAL,
+  ADD INDEX idx_hat (hat);
+
+-- 之后这个查询就能走索引了（而不是全表 LIKE）
+EXPLAIN SELECT * FROM avatars WHERE hat = 'hat-red';
+```
+
+原理：索引里存的是"计算后的值"，查询时优化器发现 WHERE 条件和生成列的表达式一致，就自动改走索引。
+- `VIRTUAL`（默认）：不占磁盘，读时现算，适合读少写多
+- `STORED`：写入时算好存起来，占磁盘，读快，还能被 COPY 类 ALTER 复用
+- 8.0.13+ 甚至可以直接给表达式建索引（函数索引），连生成列都省了：`CREATE INDEX idx_hat ON avatars((JSON_UNQUOTE(parts->'$.hat[0]')));`
+
+类比前端：像 Vue 的 **computed**——声明"这个值 = 某个表达式的结果"，本体（parts）变了它自动跟着变，你还能对它做"响应式依赖"（索引）。
+
+**④ 索引的代价（什么时候不该建）**：
 
 - 占磁盘空间（索引也是数据，联合索引可能比表还大）
 - 降低写入速度（INSERT/UPDATE/DELETE 都要同步维护所有索引树）
@@ -1970,7 +2554,7 @@ FLUSH PRIVILEGES;
 
 ---
 
-# 第十二章：面试题库（45 题）
+# 第十二章：面试题库（49 题）
 
 > 用法：先自己答（说出声），再对照参考答案。**能讲出"为什么"和"举出例子"才算过**——只背结论面试官一追问就露馅。按主题分组，⭐ 越多越高频。
 
@@ -2154,6 +2738,13 @@ CREATE TABLE follows (
 **Q48：缓存和数据库一致性怎么保证？**
 > Cache Aside：先更新 DB，再删除缓存。极端时序仍有小窗口不一致。要求更高用延迟双删或订阅 binlog（canal）。**先承认没有完美方案，再讲权衡，是加分回答。**
 
+## 表设计深挖（⭐⭐，详解 3.4 / 3.5 / 3.6）
+
+**Q49：外键是什么？生产环境要不要建？（送命题，考工程判断）**
+> 外键 = 数据库强制保证引用完整性（子表的 user_id 必须在父表存在），三种删除行为：CASCADE（删父删子，适合从属数据）、SET NULL（置空保留，适合弱参考）、RESTRICT（拒绝删除，默认，逼人工决策）。
+> **要不要建，分阶段答**：练习/传统单机项目 → 建外键，把数据完整性交给数据库最稳。互联网大厂普遍不建 → ① 每次写入都有检查开销，高并发下伤性能 ② 级联删除不可控（一条 DELETE 引发雪崩）③ 分库分表后外键无法跨库 ④ 逻辑外置后由应用层保证 + 定时对账兜底。
+> 加分项：提到"UNIQUE 约束的查重是靠唯一索引实现的，即使不建外键，UNIQUE 一般也保留"——说明你分得清约束和索引。
+
 ---
 
 # 第十三章：实战练习
@@ -2228,7 +2819,23 @@ BEGIN
 END$$
 DELIMITER ;
 CALL seed();   -- 几十秒
+```
 
+**这段存储过程逐行拆解**（第一次见肯定懵，正常）：
+
+- **存储过程（PROCEDURE）是什么**：一堆 SQL 打包存在数据库里、起个名字（seed），以后一句 `CALL seed()` 就能把这堆 SQL 全跑一遍——**类比前端：把一段逻辑封装成函数存起来，随时调用**。平时你写的每条 SQL 都是"即写即跑"，存储过程是"先存后跑"。
+- **`DELIMITER $$`**：改"语句结束符"。MySQL 客户端默认遇到 `;` 就认为语句结束，但过程体内有 6 个 `;`，不换结束符的话第一行就被截断送走执行了。所以先把结束符换成 `$$`，让整个过程完整送入，最后 `DELIMITER ;` 改回来
+- **`DECLARE i INT DEFAULT 0;`**：声明变量 i，相当于 `let i = 0;`
+- **`SET autocommit = 0;`**：关掉自动提交。默认每条 INSERT 都是一个独立事务（写完立刻落盘），10 万次开销巨大；关掉后 10 万条 INSERT 合成一个大事务，最后一次 `COMMIT`
+- **`WHILE ... DO ... END WHILE;`**：循环，跑 10 万次
+- **`VALUES (i % 100, ...)`**：user_id 用 i 除以 100 取余，让数据均匀分布在 100 个"用户"上（每个用户约 1000 个头像）——不这么干，所有行 user_id 各不相同，后面按 user_id 查就测不出效果
+- **`CALL seed();`**：调用，开始跑
+
+> 存储过程在互联网业务里用得越来越少（逻辑放数据库里难以版本管理、难以调试，现代实践是逻辑全在应用层，数据库只做存取），但**造测试数据**这种场景它依然是最趁手的工具。看得懂、会抄会改即可，不必深学。
+
+数据造好了，开始对比测试：
+
+```sql
 -- 第 1 轮：删掉索引测试全表扫描
 DROP INDEX idx_user_created ON avatars;
 EXPLAIN SELECT * FROM avatars WHERE user_id = 1 ORDER BY created_at DESC;
@@ -2354,6 +2961,12 @@ EXPLAIN SELECT * FROM avatars WHERE name LIKE '%avatar-1%'; -- 前导%，全表�
 | 页分裂 | 随机主键插入命中满页，B+ 树拆页挪数据 | 3.3 |
 | 主从复制 | 主库写 binlog，从库重放同步，读分摊到从库 | 11.1 |
 | 最左前缀 | 联合索引必须从最左列开始连续使用 | 4.3 |
+| 约束（Constraint） | 数据库原生自带的合法性检查（NOT NULL/UNIQUE/外键/CHECK…），写入瞬间原子拦截脏数据 | 3.4 |
+| 外键（Foreign Key） | 强制子表引用列的值必须在父表存在，防"悬空引用"；三种删除行为 CASCADE/SET NULL/RESTRICT | 3.4 |
+| CHECK 约束 | 自定义规则（如 status 只许四个值），MySQL 8.0.16 起才真正生效 | 3.4 |
+| 生成列（Generated Column） | 由表达式自动算出的列（VIRTUAL 现算/STORED 落盘），给 JSON 内字段建索引的桥梁 | 4.6 |
+| 存储过程（Procedure） | 打包存进数据库的 SQL 函数，`CALL 名字()` 调用；现代业务少用，造测试数据常用 | 练习 2 |
+| DELIMITER | MySQL 客户端的"语句结束符"命令；写存储过程时临时换成 $$，防止过程体内的 ; 截断语句 | 练习 2 |
 
 # 附录 B：报错速查表
 
@@ -2361,8 +2974,11 @@ EXPLAIN SELECT * FROM avatars WHERE name LIKE '%avatar-1%'; -- 前导%，全表�
 
 | 报错关键词 | 人话翻译 | 怎么办 |
 |-----------|---------|--------|
-| `Duplicate entry 'xxx' for key 'username'` | 唯一约束冲突：这个值已存在 | 检查是否重复注册/插入；业务上先查再插，或用 ON DUPLICATE KEY UPDATE |
-| `Cannot add or update a child row: a foreign key constraint fails` | 外键约束：引用了不存在的 id | 检查 user_id 等关联值是否真实存在；插入顺序对不对 |
+| `Duplicate entry 'xxx' for key 'username'` | 唯一约束冲突（错误码 1062）：这个值已存在 | 检查是否重复注册/插入；业务上先查再插，或用 ON DUPLICATE KEY UPDATE |
+| `Cannot add or update a child row: a foreign key constraint fails` | 外键约束（错误码 1452）：引用了不存在的 id | 检查 user_id 等关联值是否真实存在；插入顺序对不对 |
+| `Cannot delete or update a parent row: a foreign key constraint fails` | 外键约束（错误码 1451）：想删的数据被别人引用着 | 先删/处理子表数据再删父行；或改用 CASCADE/软删除 |
+| `Check constraint 'xxx' is violated` | CHECK 约束（错误码 3819）：值不在允许范围内 | 检查值是否满足建表时 CHECK 的规则（如 status 枚举） |
+| `Field 'xxx' doesn't have a default value` | NOT NULL 拦截（错误码 1364）：必填列没传值 | 补上该列的值，或给列加 DEFAULT |
 | `Unknown column 'xxx' in 'where clause'` | 列名写错了 | 检查拼写；是不是该跑迁移了；别名作用域问题 |
 | `Table 'learn.xxx' doesn't exist` | 表名错了 / 表还没建 | `SHOW TABLES` 看看；是不是连错了库（USE learn） |
 | `Data too long for column 'name' at row 1` | 超过 VARCHAR 上限 | 应用层做长度校验，或 ALTER MODIFY 改大上限 |

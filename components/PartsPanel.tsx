@@ -102,7 +102,7 @@ export default function PartsPanel() {
           <span className={styles.sectionHint}>{hint}</span>
         </div>
         <div className={styles.grid}>
-          {slot && !slot.multiple && (
+          {slot && !slot.multiple && !base.initialParts?.[slot.id] && (
             <button
               type="button"
               className={`${styles.part} ${slotEmpty ? styles.partSelected : ''}`}
