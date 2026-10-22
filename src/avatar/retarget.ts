@@ -81,44 +81,44 @@ const JUSTCREATE_TO_QUATERNIUS: Record<string, string> = Object.fromEntries(
   Object.entries(QUATERNIUS_TO_JUSTCREATE).map(([q, j]) => [j, q]),
 )
 
-/** 收集场景内所有 Bone（按名字索引），并缓存其 rest 世界四元数与父子关系 */
+/** 收集场景内所有 Bone 的信息（按对象身份索引），并缓存其 rest 世界四元数与父子关系 */
 interface BoneInfo {
   bone: Bone
   restWorld: Quaternion
   children: BoneInfo[]
 }
 
-function collectBoneTree(root: Object3D): {
-  byName: Map<string, BoneInfo>
-  rootName: string | null
-} {
+function collectBoneTree(root: Object3D): Map<string, BoneInfo> {
   root.updateMatrixWorld(true)
+  // 关键：按 Bone 对象身份（而不是骨名）建索引。
+  // Quaternius 骨架存在重名骨（如 middle_03_l 的末端子骨也叫 middle_03_l），
+  // 若按名索引，子节点会查到自己，形成环 → 递归永不终止（前端表现为无限"加载中"）。
+  const infos = new Map<Bone, BoneInfo>()
   const byName = new Map<string, BoneInfo>()
   const wq = new Quaternion()
-  // 第一遍：建立 info 节点
+  // 第一遍：为每个 Bone 建立 info 节点
   root.traverse((o) => {
     if ((o as Bone).isBone) {
       const b = o as Bone
       b.getWorldQuaternion(wq)
-      byName.set(b.name, { bone: b, restWorld: wq.clone(), children: [] })
+      const info: BoneInfo = { bone: b, restWorld: wq.clone(), children: [] }
+      infos.set(b, info)
+      if (!byName.has(b.name)) byName.set(b.name, info)
     }
   })
-  // 第二遍：连接父子
-  let rootName: string | null = null
-  const walk = (o: Object3D): void => {
-    if ((o as Bone).isBone) {
-      const info = byName.get((o as Bone).name)!
-      for (const c of o.children) {
-        if ((c as Bone).isBone) info.children.push(byName.get((c as Bone).name)!)
+  // 第二遍：按对象身份连接父子
+  root.traverse((o) => {
+    if (!(o as Bone).isBone) return
+    const info = infos.get(o as Bone)!
+    for (const c of o.children) {
+      if ((c as Bone).isBone) {
+        const childInfo = infos.get(c as Bone)
+        // 只有当子骨 info 不是自己时才连接（重名骨按身份不会是自己，双保险）
+        if (childInfo && childInfo !== info) info.children.push(childInfo)
       }
-      // 记录顶层骨（无骨父的骨），作为递归起点
-      const hasBoneParent = o.parent && (o.parent as Bone).isBone
-      if (!hasBoneParent && rootName === null) rootName = (o as Bone).name
     }
-    for (const c of o.children) walk(c)
-  }
-  root.traverse(walk)
-  return { byName, rootName }
+  })
+  return byName
 }
 
 /** 轨道名形如 "upperarm_l.quaternion"，拆出骨名与属性 */
@@ -184,51 +184,47 @@ export function retargetClipToJustCreate(
   const order: string[] = []
 
   // 源根骨（映射骨链顶端，通常 "pelvis"）的父世界 = 源 root 的 rest 世界旋转
-  const srcRootWorld = src.byName.get('root')?.restWorld ?? new Quaternion()
+  const srcRootWorld = src.get('root')?.restWorld.clone() ?? new Quaternion()
   const identity = new Quaternion()
 
-  const tmpSrcWorld = new Quaternion()
-  const tmpDstWorld = new Quaternion()
-  const tmpLocal = new Quaternion()
-  const tmpQ = new Quaternion()
-
   const bakeBoneRec = (
-    srcBoneName: string,
+    srcInfo: BoneInfo,
     srcParentWorld: Quaternion,
     dstParentWorld: Quaternion,
     t: number,
     out: Map<string, Quaternion>,
   ): void => {
-    const srcInfo = src.byName.get(srcBoneName)
-    if (!srcInfo) return
+    const srcBoneName = srcInfo.bone.name
     const targetName = QUATERNIUS_TO_JUSTCREATE[srcBoneName]
     if (!targetName) return
-    const dstInfo = dst.byName.get(targetName)
+    const dstInfo = dst.get(targetName)
     if (!dstInfo) return
 
     const qAnim = srcTrack.has(srcBoneName)
-      ? sampleQuaternion(srcTrack.get(srcBoneName)!, t, tmpQ)
-      : srcInfo.bone.quaternion
+      ? sampleQuaternion(srcTrack.get(srcBoneName)!, t, new Quaternion())
+      : srcInfo.bone.quaternion.clone()
 
     // srcWorld = srcParentWorld * qAnim
-    const srcWorld = tmpSrcWorld.copy(srcParentWorld).multiply(qAnim)
     // delta = srcWorld * srcRestWorld⁻¹
-    const delta = new Quaternion().copy(srcWorld).multiply(srcInfo.restWorld.clone().invert())
     // dstWorld = delta * dstRestWorld
-    const dstWorld = tmpDstWorld.copy(delta).multiply(dstInfo.restWorld)
     // dstLocal = dstParentWorld⁻¹ * dstWorld
-    const local = tmpLocal.copy(dstParentWorld).invert().multiply(dstWorld)
-    out.set(targetName, local.clone())
+    // 注意全部用 clone/新对象，绝不跨递归复用临时变量——
+    // 否则父骨的中间值会被子骨的计算覆盖，子骨 local 全部被污染成恒等。
+    const srcWorld = srcParentWorld.clone().multiply(qAnim)
+    const delta = srcWorld.clone().multiply(srcInfo.restWorld.clone().invert())
+    const dstWorld = delta.multiply(dstInfo.restWorld.clone())
+    const local = dstParentWorld.clone().invert().multiply(dstWorld)
+    out.set(targetName, local)
 
-    // 递归子骨
+    // 递归子骨（按对象身份遍历，重名骨不会成环）
     for (const child of srcInfo.children) {
-      if (child.bone.name && QUATERNIUS_TO_JUSTCREATE[child.bone.name]) {
-        bakeBoneRec(child.bone.name, srcWorld, dstWorld, t, out)
+      if (QUATERNIUS_TO_JUSTCREATE[child.bone.name]) {
+        bakeBoneRec(child, srcWorld, dstWorld, t, out)
       }
     }
   }
 
-  const srcPelvis = src.byName.get('pelvis')
+  const srcPelvis = src.get('pelvis')
   if (!srcPelvis) {
     // 没有 pelvis 骨架信息则退化为旧的"只改名"行为，避免崩溃
     return legacyRenameClip(clip)
@@ -237,7 +233,7 @@ export function retargetClipToJustCreate(
   for (let f = 0; f < frames; f++) {
     const t = Math.min(duration - 1e-4, (f / (frames - 1)) * duration)
     const locals = new Map<string, Quaternion>()
-    bakeBoneRec('pelvis', srcRootWorld, identity, t, locals)
+    bakeBoneRec(srcPelvis, srcRootWorld, identity, t, locals)
     for (const [bone, q] of locals) {
       let arr = perBone.get(bone)
       if (!arr) {
