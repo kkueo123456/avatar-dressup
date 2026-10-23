@@ -74,10 +74,10 @@ stages:
       cp /tmp/avatar-env.backup .env 2>/dev/null || true
       # 安装依赖
       npm install --legacy-peer-deps
-      # 生成 Prisma 客户端
-      npx prisma generate
+      # 生成 Prisma 客户端（失败必须终止：client 与 schema 不匹配会导致运行期 500）
+      npx prisma generate || { echo "错误：prisma generate 失败"; exit 1; }
       # 同步表结构到数据库（项目无 migrations 目录，用 db push；新增列均可空/有默认值，不会丢数据）
-      npx prisma db push --skip-generate
+      npx prisma db push --skip-generate || { echo "错误：prisma db push 失败"; exit 1; }
       # 同步服务器源码到最新提交（保证兜底构建用的是新代码；.env/node_modules 未被跟踪不受影响）
       git fetch https://gitee.com/pu_zi_jie/avatar-dressup.git main 2>/dev/null && git reset --hard FETCH_HEAD 2>/dev/null || true
       # 校验产物完整性：public 与 .next 必须来自构建产物，缺失即报错（不再静默用旧文件兜底）
