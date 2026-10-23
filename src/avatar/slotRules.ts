@@ -134,6 +134,26 @@ export function presetFitsBase(
   return true
 }
 
+/** 能穿这套预设的所有底模（供置灰套装的"切换到哪些底模"提示用） */
+export function basesFitByPreset(
+  manifest: Manifest,
+  preset: Preset,
+): BaseModel[] {
+  return manifest.bases.filter((b) => presetFitsBase(manifest, preset, b))
+}
+
+/**
+ * body 槽是否穿着非初始的真服装：拆分式底模（如 JustCreate）的躯干网格
+ * 自带烘焙的初始衣物纹样，无法按区域摘除；实测其套装都自带完整内衬，
+ * body 槽穿上真服装时整体隐藏躯干即可消除叠穿穿帮，卸空后恢复。
+ * 仅拆分式底模（有 initialParts）适用；整模底模身体就是本体，永远不动。
+ */
+export function shouldHideBaseBody(state: AvatarState, manifest: Manifest): boolean {
+  const base = manifest.bases.find((b) => b.id === state.baseId)
+  if (!base?.initialParts) return false
+  return (state.equipped.body ?? []).length > 0
+}
+
 /**
  * 整套替换四个服装槽位。预设里记录的是某一性别的部件 id；
  * 若该部件不匹配当前底模，就换成同套、同槽位、匹配底模的那件（资源脚本保证男女各有一套）。

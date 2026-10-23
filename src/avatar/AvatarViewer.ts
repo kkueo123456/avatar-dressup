@@ -280,6 +280,11 @@ export class AvatarViewer {
     this.rig.unequip(partId)
   }
 
+  /** body 槽穿上真服装时隐藏底模自带衣物纹样的躯干（见 AvatarRig.setBaseBodyHidden） */
+  setBaseBodyHidden(hidden: boolean): void {
+    this.rig.setBaseBodyHidden(hidden)
+  }
+
   async playAnimation(anim: AnimationRef): Promise<void> {
     if (this.disposed) return
     try {

@@ -2,11 +2,12 @@
 import { useEffect } from 'react'
 import { useStore } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
+import { message } from 'antd'
 import type { Preset } from '@/types/manifest'
 import {
   selectBase, selectCurrentPreset, selectEquippedCount, selectEquippedIds, selectPartsInActiveSlot, selectVisibleSlots,
 } from '@/state/avatarStore'
-import { presetFitsBase } from '@/avatar/slotRules'
+import { basesFitByPreset, presetFitsBase } from '@/avatar/slotRules'
 import { useDressUp } from './DressUpContext'
 import PartCard from './PartCard'
 import SlotIcon from './SlotIcon'
@@ -48,6 +49,24 @@ export default function PartsPanel() {
     return currentPreset?.id === p.id ? `${n} 件 · 已装` : `${n} 件`
   }
 
+  /** 置灰套装的提示：指明要切换到哪些底模才能装备 */
+  function presetTip(p: Preset): string | undefined {
+    if (presetFitsBase(manifest, p, base)) return undefined
+    const fitting = basesFitByPreset(manifest, p)
+    if (!fitting.length) return '当前没有任何底模能穿这套服装'
+    return `该套装仅 ${fitting.map((b) => b.label).join('、')} 底模可穿，请先切换底模`
+  }
+
+  function onPresetClick(p: Preset): void {
+    const tip = presetTip(p)
+    if (tip) {
+      // 置灰也能点：明确告知原因与出路，比静默无效更友好
+      void message.info(tip)
+      return
+    }
+    store.getState().applyPreset(p)
+  }
+
   return (
     <aside className={styles.panel} aria-label="部件面板">
       {/* 三个模块各自独立滚动：套装区（标题固定、卡片列表滚）、槽位 tabs（横向滚）、部件网格（标题固定、网格滚）；footer 固定 */}
@@ -58,15 +77,17 @@ export default function PartsPanel() {
         </div>
         <div className={styles.presetGrid}>
           {manifest.presets.map((p) => {
-            const disabled = !presetFitsBase(manifest, p, base)
+            const tip = presetTip(p)
+            const disabled = !!tip
             return (
               <button
                 key={p.id}
                 type="button"
                 className={`${styles.presetCard} ${currentPreset?.id === p.id ? styles.presetCardActive : ''} ${disabled ? styles.presetCardDisabled : ''}`}
-                disabled={disabled}
-                title={disabled ? '当前底模没有这套服装' : undefined}
-                onClick={() => store.getState().applyPreset(p)}
+                aria-disabled={disabled}
+                title={tip}
+                data-tip={tip}
+                onClick={() => onPresetClick(p)}
               >
                 <span aria-hidden="true" className={styles.presetSwatch} style={{ background: PRESET_SWATCH[p.id] ?? 'linear-gradient(135deg, #4A4458, #2A2634)' }} />
                 <span>

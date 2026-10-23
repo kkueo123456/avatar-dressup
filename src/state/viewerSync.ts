@@ -1,5 +1,6 @@
 import type { AnimationRef, BaseModel, Manifest, Part } from '@/types/manifest'
 import type { AvatarState } from '@/avatar/slotRules'
+import { shouldHideBaseBody } from '@/avatar/slotRules'
 import type { AvatarStore } from './avatarStore'
 
 export interface ViewerLike {
@@ -8,6 +9,7 @@ export interface ViewerLike {
   unequip(partId: string): void
   playAnimation(anim: AnimationRef): Promise<void>
   focus?(target: 'body' | 'head'): void
+  setBaseBodyHidden?(hidden: boolean): void
 }
 
 export function diffEquipped(
@@ -70,11 +72,18 @@ export function createViewerSync(
       // 动画与初始装全部就位后再取景：此时模型才是完整形态。
       // setBase 内部的聚焦只看得到裸躯干（拆分式底模），机位会凑太近、构图错误。
       viewer.focus?.('body')
+      syncBaseBodyVisibility(next)
       return
     }
     const { added, removed } = diffEquipped(prev.equipped, next.equipped)
     for (const id of removed) viewer.unequip(id)
     await equipAll(added)
+    syncBaseBodyVisibility(next)
+  }
+
+  /** body 槽穿上真服装时隐藏底模自带衣物纹样的躯干（仅拆分式底模有初始 body 装） */
+  function syncBaseBodyVisibility(state: AvatarState): void {
+    viewer.setBaseBodyHidden?.(shouldHideBaseBody(state, manifest))
   }
 
   function enqueue(next: AvatarState, prev: AvatarState | undefined): void {

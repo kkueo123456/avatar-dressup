@@ -33,6 +33,9 @@ export class AvatarRig {
   private baseToken = 0
   /** 当前底模的骨架体系，决定动画是否需要重定向 */
   private rig: 'quaternius' | 'justcreate' = 'quaternius'
+  /** 底模自身的蒙皮网格（拆分式底模 = 躯干皮肤），可被真服装整体隐藏 */
+  private baseMeshes: SkinnedMesh[] = []
+  private baseBodyHidden = false
 
   constructor(
     private readonly source: GltfSource,
@@ -68,6 +71,8 @@ export class AvatarRig {
     this.skeleton = skinned[0].skeleton
     this.boneByName = buildBoneMap(this.skeleton)
     this.rig = base.rig ?? 'quaternius'
+    this.baseMeshes = skinned
+    this.applyBaseBodyVisibility()
     scene.traverse((o) => {
       const mesh = o as Mesh
       if (!mesh.isMesh) return
@@ -91,6 +96,22 @@ export class AvatarRig {
     this.mixer = null
     this.skeleton = null
     this.boneByName = new Map()
+    this.baseMeshes = []
+  }
+
+  /**
+   * 隐藏/显示底模自身的躯干网格。拆分式底模（JustCreate）的躯干把初始衣物
+   * 烘焙进了同一张网格/贴图，无法按区域摘除；实测其套装都自带完整内衬，
+   * body 槽穿上真服装时整体隐藏躯干即可消除叠穿穿帮，卸掉后恢复。
+   */
+  setBaseBodyHidden(hidden: boolean): void {
+    if (this.baseBodyHidden === hidden) return
+    this.baseBodyHidden = hidden
+    this.applyBaseBodyVisibility()
+  }
+
+  private applyBaseBodyVisibility(): void {
+    for (const mesh of this.baseMeshes) mesh.visible = !this.baseBodyHidden
   }
 
   async equip(part: Part): Promise<void> {

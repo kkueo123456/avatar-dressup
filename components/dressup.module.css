@@ -147,6 +147,26 @@
 .presetCardActive { border: 1.5px solid var(--accent); }
 .presetCardDisabled { opacity: 0.4; cursor: not-allowed; }
 .presetCardDisabled:hover { border-color: var(--line); }
+/* 置灰套装的悬停提示：盖在卡片上方（滚动容器会裁剪外部气泡，只能内联覆盖） */
+.presetCard[data-tip] { position: relative; }
+.presetCard[data-tip]:hover::after,
+.presetCard[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  inset: 4px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: var(--radius-card);
+  background: #2a2634;
+  border: 1px solid var(--accent);
+  color: #f0ecf8;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 1;
+  pointer-events: none;
+}
 .presetSwatch { width: 28px; height: 28px; border-radius: 8px; flex: none; }
 .presetName { font-weight: 700; font-size: 13px; }
 .presetMeta { font-size: 11px; color: var(--muted); }
