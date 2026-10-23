@@ -49,6 +49,10 @@ describe('getPosterProvider', () => {
     expect(getPosterProvider({ POSTER_PROVIDER: 'mock' }).id).toBe('mock')
   })
 
+  it('real 返回通义万相适配器', () => {
+    expect(getPosterProvider({ POSTER_PROVIDER: 'real' }).id).toBe('real')
+  })
+
   it('未设置或拼错时抛错并带上值，不静默回退', () => {
     expect(() => getPosterProvider({})).toThrow('海报服务未配置: POSTER_PROVIDER=')
     expect(() => getPosterProvider({ POSTER_PROVIDER: 'openai' })).toThrow('海报服务未配置: POSTER_PROVIDER=openai')
