@@ -166,6 +166,11 @@ export class AvatarRig {
   getBounds(target = new Box3()): Box3 {
     target.makeEmpty()
     if (this.baseScene) target.setFromObject(this.baseScene, true)
+    // 已装备部件也计入：拆分式底模（JustCreate）裸态只有躯干，若只量底模，
+    // 相机会按"躯干"取景——全身机位凑太近、腿脚全被裁掉
+    for (const entry of this.equipped.values()) {
+      for (const mesh of entry.meshes) target.expandByObject(mesh, true)
+    }
     return target
   }
 

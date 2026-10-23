@@ -223,8 +223,9 @@ export class AvatarViewer {
       this.startFocus(look, look.clone().add(new THREE.Vector3(0, 0, 1.3)))
       return
     }
-    // 全身机位：相机抬到目标上方约 18 度轻微俯视，比正平视更有体积感
-    const dist = Math.max(size.y * 1.6, 2.2)
+    // 全身机位：相机抬到目标上方约 18 度轻微俯视，比正平视更有体积感。
+    // 1.8 倍身高 + 2.6m 下限：1.9m 的人物连脚带头顶完整入画还留呼吸空间
+    const dist = Math.max(size.y * 1.8, 2.6)
     const elevation = THREE.MathUtils.degToRad(18)
     this.startFocus(
       center,

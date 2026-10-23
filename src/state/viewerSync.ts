@@ -7,6 +7,7 @@ export interface ViewerLike {
   equip(part: Part): Promise<void>
   unequip(partId: string): void
   playAnimation(anim: AnimationRef): Promise<void>
+  focus?(target: 'body' | 'head'): void
 }
 
 export function diffEquipped(
@@ -66,6 +67,9 @@ export function createViewerSync(
       }
       if (idleAnim) await viewer.playAnimation(idleAnim).catch((e: unknown) => onError(idleAnim.id, e))
       await equipAll(Object.values(next.equipped).flat())
+      // 动画与初始装全部就位后再取景：此时模型才是完整形态。
+      // setBase 内部的聚焦只看得到裸躯干（拆分式底模），机位会凑太近、构图错误。
+      viewer.focus?.('body')
       return
     }
     const { added, removed } = diffEquipped(prev.equipped, next.equipped)
