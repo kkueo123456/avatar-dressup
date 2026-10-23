@@ -111,7 +111,11 @@ export class AvatarRig {
   }
 
   private applyBaseBodyVisibility(): void {
-    for (const mesh of this.baseMeshes) mesh.visible = !this.baseBodyHidden
+    for (const mesh of this.baseMeshes) {
+      // 只隐藏名字含 body 的网格（拆分式底模的 SM_*_Base_Body、整模拆分后的 SM_Body）；
+      // 头部（SM_Head/Face/Eyes）始终保留，否则人物没头
+      mesh.visible = !this.baseBodyHidden || !/body/i.test(mesh.name)
+    }
   }
 
   async equip(part: Part): Promise<void> {

@@ -143,15 +143,25 @@ export function basesFitByPreset(
 }
 
 /**
- * body 槽是否穿着非初始的真服装：拆分式底模（如 JustCreate）的躯干网格
- * 自带烘焙的初始衣物纹样，无法按区域摘除；实测其套装都自带完整内衬，
- * body 槽穿上真服装时整体隐藏躯干即可消除叠穿穿帮，卸空后恢复。
- * 仅拆分式底模（有 initialParts）适用；整模底模身体就是本体，永远不动。
+ * body 槽是否穿着非初始的真服装：
+ * - 拆分式底模（如 JustCreate）：躯干网格自带烘焙的初始衣物纹样，无法按区域摘除；
+ *   实测其套装都自带完整内衬，body 槽穿上真服装时整体隐藏躯干即可消除叠穿穿帮。
+ * - 整模底模（Quaternius fullbody）：初始衣物与身体一体建模（无法拆分），
+ *   已通过脚本把 glb 拆成 SM_Body（含烘焙衣物）+ SM_Head（头/脖子）两个网格；
+ *   但四肢皮肤与衣袖/裤腿也是一体，仅当四肢槽也被服装覆盖（如一键套装）
+ *   才隐藏身体，手动只穿单件时保留身体避免缺肢体。
  */
 export function shouldHideBaseBody(state: AvatarState, manifest: Manifest): boolean {
   const base = manifest.bases.find((b) => b.id === state.baseId)
-  if (!base?.initialParts) return false
-  return (state.equipped.body ?? []).length > 0
+  if (!base) return false
+  if ((state.equipped.body ?? []).length === 0) return false
+  if (base.initialParts) return true
+  // 整模：四肢+脚都被覆盖才隐藏（套装场景），否则保留
+  return (
+    (state.equipped.arms ?? []).length > 0 &&
+    (state.equipped.legs ?? []).length > 0 &&
+    (state.equipped.feet ?? []).length > 0
+  )
 }
 
 /**
