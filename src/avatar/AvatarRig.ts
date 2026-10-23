@@ -165,6 +165,10 @@ export class AvatarRig {
 
   getBounds(target = new Box3()): Box3 {
     target.makeEmpty()
+    // 测量前必须刷新整棵子树的世界矩阵：focus 常在部件刚 add、渲染循环尚未
+    // 跑帧的微任务里调用，此时父链 matrixWorld 是陈旧值（部件 glb 自带 ×100
+    // 节点缩放未被父级 ×0.01 抵消），会把模型量成 100 倍大——相机直接飞上天。
+    this.root.updateMatrixWorld(true)
     if (this.baseScene) target.setFromObject(this.baseScene, true)
     // 已装备部件也计入：拆分式底模（JustCreate）裸态只有躯干，若只量底模，
     // 相机会按"躯干"取景——全身机位凑太近、腿脚全被裁掉
