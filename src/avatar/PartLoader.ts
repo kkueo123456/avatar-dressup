@@ -34,6 +34,11 @@ function sanitizeAvatarMaterial(mat: Material): void {
     // 皮肤：哑光，完全去金属
     std.metalness = 0
     std.roughness = Math.max(std.roughness, 0.55)
+  } else if (name.includes('texture')) {
+    // 新模型(JustCreate)躯干主材质：皮肤与初始衣物烘焙在同一张 M_texture 上，
+    // 按皮肤质感处理（哑光 0.55），避免整块发油
+    std.metalness = 0
+    std.roughness = Math.max(std.roughness, 0.55)
   } else {
     // 布料/皮革/护甲：高粗糙、近零金属（金属光泽留给真正的金属件贴图去表现）
     std.metalness = Math.min(std.metalness, 0.05)
