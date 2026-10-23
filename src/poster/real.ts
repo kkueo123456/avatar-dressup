@@ -1,4 +1,5 @@
-import { POSTER_WIDTH, POSTER_HEIGHT, type PosterInput, type PosterProvider, type PosterStyle } from './types'
+import sharp from 'sharp'
+import { type PosterInput, type PosterProvider, type PosterStyle } from './types'
 
 /**
  * 通义万相「通用图像编辑」真实适配器。
@@ -16,10 +17,16 @@ import { POSTER_WIDTH, POSTER_HEIGHT, type PosterInput, type PosterProvider, typ
  *   DASHSCOPE_API_KEY=sk-xxx   （阿里云百炼 / DashScope API Key）
  *
  * 价格：约 $0.02/张（图像编辑，北京地域），仅成功出图计费。
+ *
+ * 已实测（2026-10-23）：标准 DashScope 端点连通，提交→轮询→SUCCEEDED 全链路通过。
+ * 万相约束：输入图宽/高须在 512~4096 像素之间，且不接受自定义 size 参数（按输入比例出图）。
  */
 
 const DASHSCOPE_BASE = 'https://dashscope.aliyuncs.com/api/v1'
 const MODEL = 'wanx2.1-imageedit'
+
+/** 万相输入图最小边长（px）；小于此值需先放大，否则报 InvalidParameter */
+const MIN_INPUT_SIDE = 512
 
 /** 提交任务后的轮询间隔（ms）与最大等待时长 */
 const POLL_INTERVAL_MS = 2000
@@ -89,6 +96,17 @@ export const wanxProvider: PosterProvider = {
       throw new Error('缺少 DASHSCOPE_API_KEY，请在环境变量中配置阿里云百炼 API Key')
     }
 
+    // 0. 输入图合规化：万相要求宽/高 512~4096px，过小则按比例放大
+    let imageBuf = input.image
+    const meta = await sharp(imageBuf, { limitInputPixels: 4096 * 4096 }).metadata()
+    if ((meta.width ?? 0) < MIN_INPUT_SIDE || (meta.height ?? 0) < MIN_INPUT_SIDE) {
+      const scale = MIN_INPUT_SIDE / Math.min(meta.width ?? 1, meta.height ?? 1)
+      imageBuf = await sharp(imageBuf)
+        .resize({ width: Math.round((meta.width ?? 512) * scale), height: Math.round((meta.height ?? 512) * scale) })
+        .jpeg({ quality: 90 })
+        .toBuffer()
+    }
+
     // 1. 提交异步编辑任务（风格化：整图风格迁移）
     const submitUrl = `${DASHSCOPE_BASE}/services/aigc/image2image/image-synthesis`
     const submit = await postJson<SubmitResponse>(
@@ -98,11 +116,10 @@ export const wanxProvider: PosterProvider = {
         input: {
           function: 'stylization_all',
           prompt: STYLE_PROMPTS[input.style],
-          base_image_url: `data:image/jpeg;base64,${input.image.toString('base64')}`,
+          base_image_url: `data:image/jpeg;base64,${imageBuf.toString('base64')}`,
         },
         parameters: {
           n: 1,
-          size: `${POSTER_WIDTH}*${POSTER_HEIGHT}`,
         },
       },
       apiKey,
