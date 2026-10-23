@@ -2,7 +2,7 @@
 import { useEffect } from 'react'
 import { useStore } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
-import { message } from 'antd'
+import { message, Popover } from 'antd'
 import type { Preset } from '@/types/manifest'
 import {
   selectBase, selectCurrentPreset, selectEquippedCount, selectEquippedIds, selectPartsInActiveSlot, selectVisibleSlots,
@@ -79,14 +79,12 @@ export default function PartsPanel() {
           {manifest.presets.map((p) => {
             const tip = presetTip(p)
             const disabled = !!tip
-            return (
+            const card = (
               <button
                 key={p.id}
                 type="button"
                 className={`${styles.presetCard} ${currentPreset?.id === p.id ? styles.presetCardActive : ''} ${disabled ? styles.presetCardDisabled : ''}`}
                 aria-disabled={disabled}
-                title={tip}
-                data-tip={tip}
                 onClick={() => onPresetClick(p)}
               >
                 <span aria-hidden="true" className={styles.presetSwatch} style={{ background: PRESET_SWATCH[p.id] ?? 'linear-gradient(135deg, #4A4458, #2A2634)' }} />
@@ -96,6 +94,24 @@ export default function PartsPanel() {
                   <span className={styles.presetMeta}>{presetMeta(p)}</span>
                 </span>
               </button>
+            )
+            // 置灰套装：antd Popover 悬停提示（portal 渲染，不受滚动容器裁剪）
+            if (!disabled) return card
+            return (
+              <Popover
+                key={p.id}
+                content={
+                  <div className={styles.presetTip}>
+                    <div className={styles.presetTipTitle}>ⓘ {tip?.split('\n')[0]}</div>
+                    {tip?.includes('\n') && <div className={styles.presetTipAction}>{tip.split('\n')[1]}</div>}
+                  </div>
+                }
+                placement="top"
+                trigger="hover"
+                styles={{ body: { padding: '10px 14px' } }}
+              >
+                {card}
+              </Popover>
             )
           })}
         </div>
