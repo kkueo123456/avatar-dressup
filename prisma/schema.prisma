@@ -54,6 +54,8 @@ model PosterJob {
   inputImageUrl    String   @map("input_image_url")
   resultImageUrl   String?  @map("result_image_url")
   errorMessage     String?  @map("error_message")
+  // 用户自定义提示词（可选，拼接在风格 prompt 之后）
+  prompt           String?
   // 提交者（poster 接口需登录；级联删除，用户注销时任务一并清理）
   userId           String?  @map("user_id")
   createdAt        DateTime @default(now()) @map("created_at")

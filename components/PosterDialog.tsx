@@ -39,6 +39,7 @@ interface Props {
 
 export default function PosterDialog({ open, onClose, screenshot, onDone }: Props) {
   const [style, setStyle] = useState<PosterStyle>('fantasy')
+  const [prompt, setPrompt] = useState('')
   const [state, setState] = useState<State>({ kind: 'pick' })
   const dialogRef = useRef<HTMLDivElement | null>(null)
   /** 在途请求；关闭弹窗或又点一次生成时先中止它 */
@@ -148,7 +149,7 @@ export default function PosterDialog({ open, onClose, screenshot, onDone }: Prop
       const res = await fetch('/api/poster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image, style }),
+        body: JSON.stringify({ image, style, prompt: prompt.trim() || undefined }),
         signal: controller.signal,
       })
       if (!res.ok) {
@@ -243,6 +244,19 @@ export default function PosterDialog({ open, onClose, screenshot, onDone }: Prop
                   {POSTER_STYLE_LABELS[s]}
                 </button>
               ))}
+            </div>
+            <div className={styles.promptWrap}>
+              <label className={styles.promptLabel} htmlFor="poster-prompt">提示词（可选）</label>
+              <textarea
+                id="poster-prompt"
+                className={styles.promptInput}
+                value={prompt}
+                maxLength={200}
+                rows={2}
+                placeholder="补充描述，如：星空背景，手持长剑，披风飘动"
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+              <span className={styles.promptCount}>{prompt.length}/200</span>
             </div>
             <div className={styles.actions}>
               <button type="button" className="btn-ghost" onClick={onClose}>取消</button>

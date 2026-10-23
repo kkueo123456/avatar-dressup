@@ -15,6 +15,8 @@ export const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 export interface PosterInput {
   image: Buffer
   style: PosterStyle
+  /** 用户自定义提示词（可选） */
+  prompt?: string
 }
 
 /** 一个方法：收图出图。真实服务与假适配器都实现它。 */

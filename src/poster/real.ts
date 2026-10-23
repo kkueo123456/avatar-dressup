@@ -107,7 +107,11 @@ export const wanxProvider: PosterProvider = {
         .toBuffer()
     }
 
-    // 1. 提交异步编辑任务（风格化：整图风格迁移）
+    // 1. 提交异步编辑任务（风格化：整图风格迁移；用户提示词拼接在风格 prompt 之后）
+    const userPrompt = input.prompt?.trim()
+    const prompt = userPrompt
+      ? `${STYLE_PROMPTS[input.style]}，${userPrompt}`
+      : STYLE_PROMPTS[input.style]
     const submitUrl = `${DASHSCOPE_BASE}/services/aigc/image2image/image-synthesis`
     const submit = await postJson<SubmitResponse>(
       submitUrl,
@@ -115,7 +119,7 @@ export const wanxProvider: PosterProvider = {
         model: MODEL,
         input: {
           function: 'stylization_all',
-          prompt: STYLE_PROMPTS[input.style],
+          prompt,
           base_image_url: `data:image/jpeg;base64,${imageBuf.toString('base64')}`,
         },
         parameters: {

@@ -68,7 +68,7 @@ async function run() {
 
     // 3. 执行生成
     try {
-      const parsed = parsePosterRequest({ image: job.inputImageUrl, style: job.style })
+      const parsed = parsePosterRequest({ image: job.inputImageUrl, style: job.style, prompt: job.prompt })
       if (!parsed.ok) {
         throw new Error(parsed.error)
       }

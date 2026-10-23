@@ -93,6 +93,19 @@
 }
 .chip:hover { border-color: var(--line-hover); }
 .chipActive { border: 1.5px solid var(--accent); color: var(--accent); }
+
+/* 提示词输入 */
+.promptWrap { display: flex; flex-direction: column; gap: 6px; }
+.promptLabel { font-size: 12.5px; color: var(--muted); }
+.promptInput {
+  width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--card); color: var(--text);
+  font-size: 13.5px; line-height: 1.5; font-family: inherit; resize: vertical; min-height: 56px;
+}
+.promptInput:focus { outline: none; border-color: var(--accent); }
+.promptInput::placeholder { color: var(--muted); opacity: 0.7; }
+.promptCount { align-self: flex-end; font-size: 11px; color: var(--muted); }
+
 .actions { display: flex; justify-content: flex-end; gap: 12px; }
 .busy { display: flex; flex-direction: column; align-items: center; gap: 16px; color: var(--muted); }
 .skeleton {

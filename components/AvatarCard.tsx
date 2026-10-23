@@ -32,6 +32,8 @@ export default function AvatarCard({ avatar }: AvatarCardProps) {
     MINTED: { label: '已铸造', cls: styles.badgeMinted },
   }
   const badge = statusBadge[avatar.mintStatus] ?? statusBadge.UNMINTED
+  // 已生成海报的卡片直接展示海报图（AI 风格化产物），否则展示封面截图
+  const displayUrl = avatar.posterUrl || avatar.coverUrl
 
   async function doDelete() {
     setIsDeleting(true)
@@ -53,8 +55,8 @@ export default function AvatarCard({ avatar }: AvatarCardProps) {
     <div className={styles.card}>
       <Link href={`/create?id=${avatar.id}`} className={styles.link}>
         <div className={styles.cover}>
-          {avatar.coverUrl ? (
-            <img src={avatar.coverUrl} alt={avatar.name} className={styles.img} />
+          {displayUrl ? (
+            <img src={displayUrl} alt={avatar.name} className={styles.img} />
           ) : (
             <div className={styles.placeholder}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

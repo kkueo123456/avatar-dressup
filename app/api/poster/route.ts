@@ -65,7 +65,7 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = parsePosterRequest(body)
   if (!parsed.ok) return jsonError(400, parsed.error)
 
-  const { image, style } = body as { image: string; style: string }
+  const { image, style, prompt } = body as { image: string; style: string; prompt?: string }
 
   const job = await prisma.posterJob.create({
     data: {
@@ -73,6 +73,7 @@ export async function POST(request: Request): Promise<Response> {
       inputImageUrl: image,
       status: 'pending',
       userId: auth.userId,
+      prompt: prompt?.trim().slice(0, 200) || null,
     },
   })
 
