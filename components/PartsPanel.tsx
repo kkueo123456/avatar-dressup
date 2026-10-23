@@ -49,12 +49,12 @@ export default function PartsPanel() {
     return currentPreset?.id === p.id ? `${n} 件 · 已装` : `${n} 件`
   }
 
-  /** 置灰套装的提示：指明要切换到哪些底模才能装备 */
+  /** 置灰套装的提示：两行结构——结论行（谁能穿）+ 行动行（怎么办） */
   function presetTip(p: Preset): string | undefined {
     if (presetFitsBase(manifest, p, base)) return undefined
     const fitting = basesFitByPreset(manifest, p)
     if (!fitting.length) return '当前没有任何底模能穿这套服装'
-    return `该套装仅 ${fitting.map((b) => b.label).join('、')} 底模可穿，请先切换底模`
+    return `该套装仅「${fitting.map((b) => b.label).join('、')}」底模可穿\n请先切换底模，再回来装备`
   }
 
   function onPresetClick(p: Preset): void {

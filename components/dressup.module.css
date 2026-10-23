@@ -145,26 +145,35 @@
 }
 .presetCard:hover { border-color: var(--line-hover); }
 .presetCardActive { border: 1.5px solid var(--accent); }
-.presetCardDisabled { opacity: 0.4; cursor: not-allowed; }
+/* 置灰：不用 opacity（会连带伪元素气泡一起变淡），改为内容降饱和/降对比 */
+.presetCardDisabled { cursor: not-allowed; }
+.presetCardDisabled .presetSwatch { filter: grayscale(1) brightness(0.55); }
+.presetCardDisabled .presetName { color: var(--muted); }
+.presetCardDisabled .presetMeta { color: var(--muted); opacity: 0.7; }
 .presetCardDisabled:hover { border-color: var(--line); }
-/* 置灰套装的悬停提示：盖在卡片上方（滚动容器会裁剪外部气泡，只能内联覆盖） */
+/* 置灰套装的悬停提示：盖在卡片上方（滚动容器会裁剪外部气泡，只能内联覆盖）。
+   深底 + 琥珀描边 + 双行文案（结论行 / 行动行），确保暗色面板上对比度足够 */
 .presetCard[data-tip] { position: relative; }
 .presetCard[data-tip]:hover::after,
 .presetCard[data-tip]:focus-visible::after {
-  content: attr(data-tip);
+  content: "ⓘ  " attr(data-tip);
   position: absolute;
   inset: 4px;
   z-index: 20;
   display: flex;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: var(--radius-card);
-  background: #2a2634;
-  border: 1px solid var(--accent);
-  color: #f0ecf8;
-  font-size: 12px;
-  line-height: 1.5;
-  opacity: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #2b2438 0%, #191521 100%);
+  border: 1px solid rgba(240, 185, 90, 0.55);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #f5f2fa;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  white-space: pre-line;
+  text-align: left;
   pointer-events: none;
 }
 .presetSwatch { width: 28px; height: 28px; border-radius: 8px; flex: none; }
