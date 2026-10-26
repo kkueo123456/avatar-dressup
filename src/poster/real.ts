@@ -33,6 +33,14 @@ const MIN_INPUT_SIDE = 512
 const POLL_INTERVAL_MS = 2000
 const MAX_WAIT_MS = 120_000
 
+/**
+ * 单次 HTTP 请求的超时上限（ms）。
+ * fetch 本身不带超时：一旦网络「半挂」（TCP 连上了但不回包），fetch 会永久挂起，
+ * 导致 MAX_WAIT_MS 的 while 循环卡在 await getJson() 上出不来，任务永远 running、堵死后续队列。
+ * 用 AbortSignal.timeout 给每次请求独立上锁，超时即抛错 → 任务标记 failed → worker 继续下一单。
+ */
+const HTTP_TIMEOUT_MS = 15_000
+
 /** 四种海报风格 → 图生图 prompt 的风格描述 */
 const STYLE_PROMPTS: Record<PosterStyle, string> = {
   fantasy: '奇幻史诗插画风格，暖金色调，电影级光影，细节精致',
@@ -65,6 +73,7 @@ async function postJson<T>(url: string, body: unknown, apiKey: string): Promise<
       'X-DashScope-Async': 'enable',
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
   })
   const json = (await res.json().catch(() => ({}))) as T
   if (!res.ok) {
@@ -77,6 +86,7 @@ async function postJson<T>(url: string, body: unknown, apiKey: string): Promise<
 async function getJson<T>(url: string, apiKey: string): Promise<T> {
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
   })
   const json = (await res.json().catch(() => ({}))) as T
   if (!res.ok) {
@@ -158,7 +168,7 @@ export const wanxProvider: PosterProvider = {
     }
 
     // 3. 下载结果图（结果 URL 24 小时有效，必须转存到本地）
-    const imgRes = await fetch(resultUrl)
+    const imgRes = await fetch(resultUrl, { signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) })
     if (!imgRes.ok) {
       throw new Error(`下载万相结果图失败: HTTP ${imgRes.status}`)
     }

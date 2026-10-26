@@ -19,6 +19,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 
+/**
+ * 僵尸任务回收：worker 启动时，把卡在 running 超过 ZOMBIE_THRESHOLD_MS 的任务重新置回 pending。
+ * 场景：worker 崩溃/被 kill 时可能正停在 running，重启后 findFirst({status:'pending'}) 永远找不到它，
+ * 导致该任务（及其后的 pending）永久卡死。这里兜底把它们捞回来重新排队。
+ */
+const ZOMBIE_THRESHOLD_MS = 5 * 60_000
+
+async function recoverZombieJobs() {
+  const cutoff = new Date(Date.now() - ZOMBIE_THRESHOLD_MS)
+  const { count } = await prisma.posterJob.updateMany({
+    where: { status: 'running', startedAt: { lt: cutoff } },
+    data: { status: 'pending', startedAt: null },
+  })
+  if (count > 0) console.log(`回收 ${count} 个僵尸 running 任务 -> pending`)
+}
+
 /** 写入海报文件，返回可存 DB 的短路径 */
 function savePosterFile(buf: Buffer): string {
   fs.mkdirSync(POSTER_DIR, { recursive: true })
@@ -40,6 +56,9 @@ async function migrateDataUrlIfNeeded(jobId: string, dataUrl: string): Promise<s
 
 async function run() {
   console.log('Worker 启动， provider =', provider.id)
+
+  // 启动时先回收僵尸任务，避免历史 running 残留堵死队列
+  await recoverZombieJobs()
 
   while (true) {
     // 1. 拉一条最早的 pending
