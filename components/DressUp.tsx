@@ -172,20 +172,21 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
   }
 
   async function handlePosterDone(posterUrl: string) {
-    if (!savedAvatarId) return
+    const id = savedAvatarId ?? avatarId
+    if (!id) return
     try {
-      await fetch(`/api/avatar/${savedAvatarId}`, {
+      // 即时回写海报地址（worker 也会自动写一次，这里让离开页面前列表即刻最新）
+      await fetch(`/api/avatar/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ posterUrl }),
       })
     } catch (e) {
-      // 回写失败不阻塞流程，形象本体已保存
+      // 回写失败不阻塞流程，worker 后台仍会自动写回
       console.error('海报地址回写失败:', e)
     }
-    setSavedAvatarId(null)
-    router.push('/avatars') // 海报完成，进入我的形象库
+    // 不跳转：海报已在弹窗展示，用户可「保存图片」或「重新生成」
   }
 
   return (

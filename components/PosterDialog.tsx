@@ -289,8 +289,8 @@ export default function PosterDialog({ open, onClose, screenshot, onDone, avatar
           <>
             <img className={styles.result} src={state.url} alt={`${POSTER_STYLE_LABELS[state.style]}风格的海报`} />
             <div className={styles.actions}>
-              <button type="button" className="btn-ghost" onClick={() => setState({ kind: 'pick' })}>换个风格</button>
-              <a className="btn-primary" href={state.url} download={fileName}>下载</a>
+              <button type="button" className="btn-ghost" onClick={() => setState({ kind: 'pick' })}>重新生成</button>
+              <a className="btn-primary" href={state.url} download={fileName}>保存图片</a>
             </div>
           </>
         )}
