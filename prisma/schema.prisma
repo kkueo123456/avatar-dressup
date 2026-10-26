@@ -56,6 +56,8 @@ model PosterJob {
   errorMessage     String?  @map("error_message")
   // 用户自定义提示词（可选，拼接在风格 prompt 之后）
   prompt           String?
+  // 关联的形象（可选）：worker 完成后自动把海报写回 avatar.posterUrl，支持后台生成
+  avatarId         String?  @map("avatar_id")
   // 提交者（poster 接口需登录；级联删除，用户注销时任务一并清理）
   userId           String?  @map("user_id")
   createdAt        DateTime @default(now()) @map("created_at")

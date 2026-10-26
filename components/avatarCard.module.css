@@ -98,6 +98,15 @@
 }
 .badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .badgePoster { background: rgba(168, 85, 247, 0.18); color: #c084fc; }
+.badgePending {
+  background: rgba(232, 164, 69, 0.15);
+  color: var(--accent, #e8a445);
+  animation: badgePulse 1.6s ease-in-out infinite;
+}
+@keyframes badgePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
 .badgeUnminted { background: rgba(160, 157, 174, 0.15); color: var(--muted); }
 .badgeMinting { background: rgba(242, 201, 76, 0.15); color: var(--warn); }
 .badgeMinted { background: rgba(111, 207, 151, 0.15); color: var(--ok); }

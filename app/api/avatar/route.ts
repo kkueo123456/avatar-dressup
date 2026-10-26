@@ -83,11 +83,19 @@ export async function GET(request: Request): Promise<Response> {
       },
     })
 
+    // 进行中的海报任务（按形象分组）：前端据此显示「生成中」并启动轮询
+    const activeJobs = await prisma.posterJob.findMany({
+      where: { userId: ctx.userId, status: { in: ['pending', 'running'] }, avatarId: { not: null } },
+      select: { avatarId: true },
+    })
+    const pendingAvatarIds = new Set(activeJobs.map((j) => j.avatarId as string))
+
     return Response.json({
       avatars: avatars.map((a) => ({
         ...a,
         createdAt: a.createdAt.toISOString(),
         updatedAt: a.updatedAt.toISOString(),
+        posterPending: pendingAvatarIds.has(a.id),
       })),
     })
   } catch (e) {

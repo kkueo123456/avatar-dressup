@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import AvatarCard from '../../components/AvatarCard'
 import styles from './avatars.module.css'
 
@@ -13,6 +13,8 @@ interface AvatarItem {
   baseId: string
   coverUrl: string | null
   posterUrl: string | null
+  /** 有进行中的海报任务（worker 后台生成中） */
+  posterPending?: boolean
   createdAt: string
   mintStatus: string
   tokenId: string | null
@@ -24,6 +26,25 @@ export default function AvatarsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userName, setUserName] = useState('')
+  const avatarsRef = useRef<AvatarItem[]>([])
+  avatarsRef.current = avatars
+
+  const loadAvatars = useCallback(async (): Promise<boolean> => {
+    // 返回 false 表示未登录（终止轮询），true 表示本次拉取成功
+    try {
+      const res = await fetch('/api/avatar', { credentials: 'include' })
+      if (res.status === 401) {
+        setError('请先登录')
+        return false
+      }
+      if (!res.ok) return true
+      const data = (await res.json()) as { avatars: AvatarItem[] }
+      setAvatars(data.avatars)
+      return true
+    } catch {
+      return true // 网络抖动不终止轮询
+    }
+  }, [])
 
   useEffect(() => {
     // 并行拉取形象列表和当前用户名
@@ -57,6 +78,18 @@ export default function AvatarsPage() {
         setLoading(false)
       })
   }, [])
+
+  // 后台生成轮询：列表里有「生成中」的形象时，每 5 秒刷新一次，直到全部完成
+  const hasPending = avatars.some((a) => a.posterPending)
+  useEffect(() => {
+    if (!hasPending) return
+    const timer = setInterval(async () => {
+      const ok = await loadAvatars()
+      // 最新列表里已无生成中任务，或已登出 → 停止轮询
+      if (!ok || !avatarsRef.current.some((a) => a.posterPending)) clearInterval(timer)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [hasPending, loadAvatars])
 
   const filtered = avatars.filter((a) => {
     if (filter === 'withPoster') return !!a.posterUrl

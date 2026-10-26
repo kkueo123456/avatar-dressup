@@ -13,6 +13,8 @@ interface AvatarCardProps {
     baseId: string
     coverUrl: string | null
     posterUrl?: string | null
+    /** 有进行中的海报任务（后台生成中） */
+    posterPending?: boolean
     createdAt: string | Date
     mintStatus: string
     tokenId: string | null
@@ -82,6 +84,7 @@ export default function AvatarCard({ avatar }: AvatarCardProps) {
         <div className={styles.row}>
           <h3 className={styles.name} title={avatar.name}>{avatar.name}</h3>
           <div className={styles.badges}>
+            {avatar.posterPending && <span className={`${styles.badge} ${styles.badgePending}`}>生成中…</span>}
             {avatar.posterUrl && <span className={`${styles.badge} ${styles.badgePoster}`}>已生成海报</span>}
             <span className={`${styles.badge} ${badge.cls}`}>{badge.label}</span>
           </div>

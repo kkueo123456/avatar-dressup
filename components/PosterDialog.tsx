@@ -35,9 +35,11 @@ interface Props {
   screenshot: () => string
   /** 海报生成完成后回调（传入海报图片 URL） */
   onDone?: (posterUrl: string) => void
+  /** 关联的形象 ID：携带后 worker 完成会自动写回 avatar.posterUrl（后台生成） */
+  avatarId?: string | null
 }
 
-export default function PosterDialog({ open, onClose, screenshot, onDone }: Props) {
+export default function PosterDialog({ open, onClose, screenshot, onDone, avatarId }: Props) {
   const [style, setStyle] = useState<PosterStyle>('fantasy')
   const [prompt, setPrompt] = useState('')
   const [state, setState] = useState<State>({ kind: 'pick' })
@@ -61,14 +63,20 @@ export default function PosterDialog({ open, onClose, screenshot, onDone }: Prop
     }
   }, [])
 
-  // 关闭时中止在途请求并回到选风格态；关掉后回来的响应不许再写状态
+  // 关闭时：中止前端轮询并回到选风格态；任务已在库里，worker 会继续跑完并自动写回
+  // （后台生成）；关掉后回来的响应不许再写状态
   useEffect(() => {
     if (open) return
+    const wasBusy = state.kind === 'busy'
     abortRef.current?.abort()
     abortRef.current = null
     runRef.current += 1
     setState({ kind: 'pick' })
-  }, [open])
+    if (wasBusy) {
+      // 生成中关弹窗：提示已转入后台（结果由 worker 自动写回，列表页可查看进度）
+      void import('antd').then(({ message }) => message.info('已转入后台生成，可在形象库查看进度'))
+    }
+  }, [open, state.kind])
 
   // 卸载时同样中止，避免请求回来时往已卸载的组件写状态、留下悬挂的 blob URL
   useEffect(() => () => {
@@ -149,7 +157,12 @@ export default function PosterDialog({ open, onClose, screenshot, onDone }: Prop
       const res = await fetch('/api/poster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image, style, prompt: prompt.trim() || undefined }),
+        body: JSON.stringify({
+          image,
+          style,
+          prompt: prompt.trim() || undefined,
+          avatarId: avatarId || undefined,
+        }),
         signal: controller.signal,
       })
       if (!res.ok) {

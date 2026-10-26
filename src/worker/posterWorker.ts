@@ -90,6 +90,14 @@ async function run() {
         },
       })
 
+      // 后台生成：任务关联了形象时，直接把海报写回 avatar.posterUrl
+      // （前端不在场也能落库，列表页轮询即可发现新海报）
+      if (job.avatarId) {
+        await prisma.avatar
+          .update({ where: { id: job.avatarId }, data: { posterUrl: url } })
+          .catch((e: unknown) => console.error(`[${job.id}] 海报写回形象失败:`, e))
+      }
+
       console.log(`[${job.id}] 完成 -> ${url}`)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)

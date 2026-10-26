@@ -217,6 +217,7 @@ export default function DressUp({ avatarId }: { avatarId?: string }) {
             onClose={() => setPosterOpen(false)}
             screenshot={() => viewer.screenshot()}
             onDone={handlePosterDone}
+            avatarId={savedAvatarId ?? avatarId}
           />
         )}
       </div>

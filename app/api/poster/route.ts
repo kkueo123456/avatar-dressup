@@ -65,7 +65,22 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = parsePosterRequest(body)
   if (!parsed.ok) return jsonError(400, parsed.error)
 
-  const { image, style, prompt } = body as { image: string; style: string; prompt?: string }
+  const { image, style, prompt, avatarId } = body as {
+    image: string
+    style: string
+    prompt?: string
+    avatarId?: string
+  }
+
+  // avatarId 可选：携带时校验归属（必须是当前用户的形象），worker 完成后自动写回 posterUrl
+  let validAvatarId: string | null = null
+  if (avatarId) {
+    const avatar = await prisma.avatar.findUnique({ where: { id: avatarId }, select: { userId: true } })
+    if (!avatar || avatar.userId !== auth.userId) {
+      return jsonError(400, '形象不存在或无权操作')
+    }
+    validAvatarId = avatarId
+  }
 
   const job = await prisma.posterJob.create({
     data: {
@@ -73,6 +88,7 @@ export async function POST(request: Request): Promise<Response> {
       inputImageUrl: image,
       status: 'pending',
       userId: auth.userId,
+      avatarId: validAvatarId,
       prompt: prompt?.trim().slice(0, 200) || null,
     },
   })
