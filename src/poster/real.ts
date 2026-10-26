@@ -23,9 +23,7 @@ import { type PosterInput, type PosterProvider, type PosterStyle } from './types
  */
 
 const DASHSCOPE_BASE = 'https://dashscope.aliyuncs.com/api/v1'
-/** 图像编辑模型：整图风格化（用户未填提示词时的路线） */
-const MODEL = 'wanx2.1-imageedit'
-/** 图生图模型：prompt 遵循度高，支持按提示词重绘内容（用户填了提示词时的路线） */
+/** 图生图模型：prompt 遵循度高，支持按提示词重绘内容（统一路线） */
 const MODEL_I2I = 'wan2.5-i2i-preview'
 
 /** 万相输入图最小边长（px）；小于此值需先放大，否则报 InvalidParameter */
@@ -35,12 +33,12 @@ const MIN_INPUT_SIDE = 512
 const POLL_INTERVAL_MS = 2000
 const MAX_WAIT_MS = 120_000
 
-/** 四种海报风格 → 万相「全局风格化」的 prompt 文案 */
+/** 四种海报风格 → 图生图 prompt 的风格描述 */
 const STYLE_PROMPTS: Record<PosterStyle, string> = {
-  fantasy: '转换成奇幻史诗插画风格，暖金色调，电影级光影，细节精致',
-  anime: '转换成日式动漫风格，明亮清新的赛璐璐上色，线条干净',
-  watercolor: '转换成清新水彩画风格，柔和晕染，纸纹质感，淡雅配色',
-  cyberpunk: '转换成赛博朋克风格，霓虹蓝紫色调，高对比，未来感十足',
+  fantasy: '奇幻史诗插画风格，暖金色调，电影级光影，细节精致',
+  anime: '日式动漫风格，明亮清新的赛璐璐上色，线条干净',
+  watercolor: '清新水彩画风格，柔和晕染，纸纹质感，淡雅配色',
+  cyberpunk: '赛博朋克风格，霓虹蓝紫色调，高对比，未来感十足',
 }
 
 interface SubmitResponse {
@@ -110,32 +108,25 @@ export const wanxProvider: PosterProvider = {
         .toBuffer()
     }
 
-    // 1. 提交异步任务。两条路线：
-    //    - 用户填了提示词 → 走图生图模型 wan2.5-i2i-preview（prompt 遵循度高，
-    //      能按提示词重绘背景/内容，如「极光背景，悬崖边上」）
-    //    - 未填提示词 → 走图像编辑 wanx2.1-imageedit 的 stylization_all（纯风格化，最保真）
+    // 1. 提交异步任务（统一走图生图 wan2.5-i2i-preview，prompt 遵循度高）
     const userPrompt = input.prompt?.trim()
     const base64Image = `data:image/jpeg;base64,${imageBuf.toString('base64')}`
+    const prompt = userPrompt
+      ? `${STYLE_PROMPTS[input.style]}海报；${userPrompt}；人物保持原图中的姿势、外貌与服装，画面为竖版海报构图`
+      : `${STYLE_PROMPTS[input.style]}海报；人物保持原图中的姿势、外貌与服装，画面为竖版海报构图`
     const submitUrl = `${DASHSCOPE_BASE}/services/aigc/image2image/image-synthesis`
-    const body = userPrompt
-      ? {
-          model: MODEL_I2I,
-          input: {
-            prompt: `${STYLE_PROMPTS[input.style]}海报；${userPrompt}；人物保持原图中的姿势、外貌与服装，画面为竖版海报构图`,
-            images: [base64Image],
-          },
-          parameters: { n: 1 },
-        }
-      : {
-          model: MODEL,
-          input: {
-            function: 'stylization_all',
-            prompt: STYLE_PROMPTS[input.style],
-            base_image_url: base64Image,
-          },
-          parameters: { n: 1 },
-        }
-    const submit = await postJson<SubmitResponse>(submitUrl, body, apiKey)
+    const submit = await postJson<SubmitResponse>(
+      submitUrl,
+      {
+        model: MODEL_I2I,
+        input: {
+          prompt,
+          images: [base64Image],
+        },
+        parameters: { n: 1 },
+      },
+      apiKey,
+    )
 
     const taskId = submit.output?.task_id
     if (!taskId) {
