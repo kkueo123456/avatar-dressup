@@ -23,7 +23,7 @@ stages:
     - "# Gitee artifacts 对目录型 path 会 flatten 目录结构（public/avatar/x → ./avatar/x），"
     - "# 导致服务器解压后 public/ 与 .next/ 缺失、走兜底恢复旧文件。这里自己打 tar 保证结构，"
     - "# artifact 只传单文件，绕开 flatten。"
-    - tar -czf bundle.tar.gz .next public prisma src/worker ecosystem.config.cjs package.json package-lock.json next.config.ts tsconfig.json
+    - tar -czf bundle.tar.gz .next public prisma src ecosystem.config.cjs package.json package-lock.json next.config.ts tsconfig.json
     artifacts:
     - name: BUILD_ARTIFACT
       path:
@@ -77,7 +77,12 @@ stages:
       cp /tmp/avatar-env.backup .env 2>/dev/null || true
       # 先同步服务器源码到最新提交，确保 schema 与代码一致（否则会用被改坏的旧 schema 生成 client）
       # 注意：必须放在 prisma generate / db push 之前，否则坏 schema 会被固化成坏 client + 坏表结构
-      git fetch https://gitee.com/pu_zi_jie/avatar-dressup.git main 2>/dev/null && git reset --hard FETCH_HEAD 2>/dev/null || true
+      # 关键：fetch/reset 失败必须终止（旧版曾 2>/dev/null || true 静默吞错，导致服务器停留在
+      # 旧代码上而 tar 包又不含完整 src，worker 起不来报「海报服务未配置」崩溃循环）
+      git fetch https://gitee.com/pu_zi_jie/avatar-dressup.git main || { echo "错误：git fetch 失败，无法同步最新源码"; exit 1; }
+      git reset --hard FETCH_HEAD || { echo "错误：git reset 失败"; exit 1; }
+      git rev-parse HEAD > /tmp/deployed-commit.txt
+      echo "服务器源码已同步到: $(cat /tmp/deployed-commit.txt)"
       # 安装依赖
       npm install --legacy-peer-deps
       # 生成 Prisma 客户端（失败必须终止：client 与 schema 不匹配会导致运行期 500）
