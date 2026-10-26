@@ -75,14 +75,13 @@ stages:
       fi
       # 恢复 .env
       cp /tmp/avatar-env.backup .env 2>/dev/null || true
-      # 先同步服务器源码到最新提交，确保 schema 与代码一致（否则会用被改坏的旧 schema 生成 client）
-      # 注意：必须放在 prisma generate / db push 之前，否则坏 schema 会被固化成坏 client + 坏表结构
-      # 关键：fetch/reset 失败必须终止（旧版曾 2>/dev/null || true 静默吞错，导致服务器停留在
-      # 旧代码上而 tar 包又不含完整 src，worker 起不来报「海报服务未配置」崩溃循环）
-      git fetch https://gitee.com/pu_zi_jie/avatar-dressup.git main || { echo "错误：git fetch 失败，无法同步最新源码"; exit 1; }
-      git reset --hard FETCH_HEAD || { echo "错误：git reset 失败"; exit 1; }
-      git rev-parse HEAD > /tmp/deployed-commit.txt
-      echo "服务器源码已同步到: $(cat /tmp/deployed-commit.txt)"
+      # ── 源码以 tar 包为准，不再 git reset ─────────────────────────
+      # 教训（2026-10-26 海报 pending 事故）：worker 用 tsx 直接跑 src/ 源码，
+      # 而旧脚本在「解压新产物」之后又执行 git reset --hard FETCH_HEAD，
+      # 若服务器 fetch 到旧提交，会把刚解压的新 src/ 覆盖回旧代码，
+      # 导致 worker 报「海报服务未配置」崩溃循环、任务永远 pending。
+      # 现在：src/ 完全来自构建产物（tar 已含完整 src），不再依赖服务器 git 状态。
+      echo "部署提交标识: $(cat .git/refs/heads/main 2>/dev/null || echo '以 tar 产物为准')"
       # 安装依赖
       npm install --legacy-peer-deps
       # 生成 Prisma 客户端（失败必须终止：client 与 schema 不匹配会导致运行期 500）
