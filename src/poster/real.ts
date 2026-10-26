@@ -23,7 +23,10 @@ import { type PosterInput, type PosterProvider, type PosterStyle } from './types
  */
 
 const DASHSCOPE_BASE = 'https://dashscope.aliyuncs.com/api/v1'
+/** 图像编辑模型：整图风格化（用户未填提示词时的路线） */
 const MODEL = 'wanx2.1-imageedit'
+/** 图生图模型：prompt 遵循度高，支持按提示词重绘内容（用户填了提示词时的路线） */
+const MODEL_I2I = 'wan2.5-i2i-preview'
 
 /** 万相输入图最小边长（px）；小于此值需先放大，否则报 InvalidParameter */
 const MIN_INPUT_SIDE = 512
@@ -107,27 +110,32 @@ export const wanxProvider: PosterProvider = {
         .toBuffer()
     }
 
-    // 1. 提交异步编辑任务（风格化：整图风格迁移；用户提示词拼接在风格 prompt 之后）
+    // 1. 提交异步任务。两条路线：
+    //    - 用户填了提示词 → 走图生图模型 wan2.5-i2i-preview（prompt 遵循度高，
+    //      能按提示词重绘背景/内容，如「极光背景，悬崖边上」）
+    //    - 未填提示词 → 走图像编辑 wanx2.1-imageedit 的 stylization_all（纯风格化，最保真）
     const userPrompt = input.prompt?.trim()
-    const prompt = userPrompt
-      ? `${STYLE_PROMPTS[input.style]}，${userPrompt}`
-      : STYLE_PROMPTS[input.style]
+    const base64Image = `data:image/jpeg;base64,${imageBuf.toString('base64')}`
     const submitUrl = `${DASHSCOPE_BASE}/services/aigc/image2image/image-synthesis`
-    const submit = await postJson<SubmitResponse>(
-      submitUrl,
-      {
-        model: MODEL,
-        input: {
-          function: 'stylization_all',
-          prompt,
-          base_image_url: `data:image/jpeg;base64,${imageBuf.toString('base64')}`,
-        },
-        parameters: {
-          n: 1,
-        },
-      },
-      apiKey,
-    )
+    const body = userPrompt
+      ? {
+          model: MODEL_I2I,
+          input: {
+            prompt: `${STYLE_PROMPTS[input.style]}海报；${userPrompt}；人物保持原图中的姿势、外貌与服装，画面为竖版海报构图`,
+            images: [base64Image],
+          },
+          parameters: { n: 1 },
+        }
+      : {
+          model: MODEL,
+          input: {
+            function: 'stylization_all',
+            prompt: STYLE_PROMPTS[input.style],
+            base_image_url: base64Image,
+          },
+          parameters: { n: 1 },
+        }
+    const submit = await postJson<SubmitResponse>(submitUrl, body, apiKey)
 
     const taskId = submit.output?.task_id
     if (!taskId) {
