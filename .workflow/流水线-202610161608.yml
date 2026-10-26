@@ -60,6 +60,9 @@ stages:
       cp .env /tmp/avatar-env.backup 2>/dev/null || true
       # 清理旧构建产物（保留 node_modules 和源码）
       rm -rf .next public prisma next.config.ts tsconfig.json package.json package-lock.json bundle.tar.gz
+      # 删除根目录遗留的旧 schema 副本：prisma generate 会优先加载根目录 schema.prisma，
+      # 若存在旧副本会导致 client 与 prisma/schema.prisma 不一致（历史 500 根因）
+      rm -f schema.prisma
       # 解压构建产物：外层 output.tar.gz 是流水线包装，内层 bundle.tar.gz 才是保持目录结构的真正产物
       if [ -f output.tar.gz ]; then
         tar -xzf output.tar.gz 2>/dev/null || true
@@ -79,6 +82,8 @@ stages:
       npm install --legacy-peer-deps
       # 生成 Prisma 客户端（失败必须终止：client 与 schema 不匹配会导致运行期 500）
       npx prisma generate || { echo "错误：prisma generate 失败"; exit 1; }
+      # 校验 client 是否与最新 schema 一致（以 prompt 字段为探针）；不一致说明加载了旧 schema 副本，立即终止
+      grep -q "prompt" node_modules/.prisma/client/index.d.ts || { echo "错误：生成的 Prisma Client 缺少 prompt 字段（可能加载了根目录旧 schema 副本）"; exit 1; }
       # 同步表结构到数据库（项目无 migrations 目录，用 db push；新增列均可空/有默认值，不会丢数据）
       npx prisma db push --skip-generate || { echo "错误：prisma db push 失败"; exit 1; }
       # 校验产物完整性：public 与 .next 必须来自构建产物，缺失即报错（不再静默用旧文件兜底）
