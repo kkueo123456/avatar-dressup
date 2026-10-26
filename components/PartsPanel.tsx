@@ -100,6 +100,7 @@ export default function PartsPanel() {
             return (
               <Popover
                 key={p.id}
+                color="#2b2438"
                 content={
                   <div className={styles.presetTip}>
                     <div className={styles.presetTipTitle}>ⓘ {tip?.split('\n')[0]}</div>
