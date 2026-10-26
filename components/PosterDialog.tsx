@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { POSTER_STYLES, POSTER_STYLE_LABELS, type PosterStyle } from '@/poster/types'
 import styles from './poster.module.css'
 
@@ -40,9 +41,12 @@ interface Props {
 }
 
 export default function PosterDialog({ open, onClose, screenshot, onDone, avatarId }: Props) {
+  const router = useRouter()
   const [style, setStyle] = useState<PosterStyle>('fantasy')
   const [prompt, setPrompt] = useState('')
   const [state, setState] = useState<State>({ kind: 'pick' })
+  /** 上次成功生成的海报图 URL：点「重新生成」回到选风格页时，预览区继续显示它 */
+  const [lastUrl, setLastUrl] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDivElement | null>(null)
   /** 在途请求；关闭弹窗或又点一次生成时先中止它 */
   const abortRef = useRef<AbortController | null>(null)
@@ -198,6 +202,7 @@ export default function PosterDialog({ open, onClose, screenshot, onDone, avatar
         if (data.status === 'done') {
           if (alive()) {
             setState({ kind: 'done', url: data.resultImageUrl!, style })
+            setLastUrl(data.resultImageUrl!)
             if (onDone && data.resultImageUrl) onDone(data.resultImageUrl)
           }
           return
@@ -215,7 +220,6 @@ export default function PosterDialog({ open, onClose, screenshot, onDone, avatar
   }
 
   if (!open) return null
-  const fileName = `avatar-poster-${style}-${new Date().toISOString().slice(0, 10)}.jpg`
 
   return (
     <div className={styles.backdrop} role="dialog" aria-modal="true" aria-labelledby="poster-title">
@@ -229,20 +233,24 @@ export default function PosterDialog({ open, onClose, screenshot, onDone, avatar
           <>
             <p className={styles.lead}>选一种风格，把当前形象交给 AI 画成一张海报。</p>
             <div className={styles.previewWrap}>
-              <div
-                className={`${styles.preview} ${
-                  style === 'fantasy'
-                    ? styles.previewFantasy
-                    : style === 'anime'
-                      ? styles.previewAnime
-                      : style === 'watercolor'
-                        ? styles.previewWatercolor
-                        : styles.previewCyberpunk
-                }`}
-                aria-hidden="true"
-              >
-                <span className={styles.previewLabel}>{POSTER_STYLE_LABELS[style]}</span>
-              </div>
+              {lastUrl ? (
+                <img className={styles.previewImg} src={lastUrl} alt="上次生成的海报" />
+              ) : (
+                <div
+                  className={`${styles.preview} ${
+                    style === 'fantasy'
+                      ? styles.previewFantasy
+                      : style === 'anime'
+                        ? styles.previewAnime
+                        : style === 'watercolor'
+                          ? styles.previewWatercolor
+                          : styles.previewCyberpunk
+                  }`}
+                  aria-hidden="true"
+                >
+                  <span className={styles.previewLabel}>{POSTER_STYLE_LABELS[style]}</span>
+                </div>
+              )}
             </div>
             <div className={styles.chips} role="radiogroup" aria-label="风格">
               {POSTER_STYLES.map((s) => (
@@ -290,7 +298,7 @@ export default function PosterDialog({ open, onClose, screenshot, onDone, avatar
             <img className={styles.result} src={state.url} alt={`${POSTER_STYLE_LABELS[state.style]}风格的海报`} />
             <div className={styles.actions}>
               <button type="button" className="btn-ghost" onClick={() => setState({ kind: 'pick' })}>重新生成</button>
-              <a className="btn-primary" href={state.url} download={fileName}>保存图片</a>
+              <button type="button" className="btn-primary" onClick={() => router.push('/avatars')}>完成</button>
             </div>
           </>
         )}

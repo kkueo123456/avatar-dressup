@@ -14,6 +14,13 @@
 }
 .lead { margin: 0; color: var(--muted); }
 .previewWrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.previewImg {
+  width: min(220px, 60%);
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+}
 .preview {
   width: min(220px, 60%);
   aspect-ratio: 2 / 3;
